@@ -59,7 +59,7 @@ function DraggablePickup({ pickup }: { pickup: Pickup }) {
   );
 }
 
-function DroppableSlot({ position, assignment, employees, pickups, onRemove }: any) {
+function DroppableSlot({ position, assignment, employees, pickups, onRemove, clientName }: any) {
   const { isOver, setNodeRef } = useDroppable({
     id: `slot-${position}`,
     data: { position }
@@ -73,9 +73,9 @@ function DroppableSlot({ position, assignment, employees, pickups, onRemove }: a
       ref={setNodeRef}
       className={`flex items-stretch min-h-[80px] bg-white border rounded-xl overflow-hidden transition-all ${isOver ? 'border-primary ring-2 ring-primary/20 bg-primary/5' : 'border-slate-200 shadow-sm'}`}
     >
-      {/* Position indicator */}
-      <div className="w-12 bg-slate-50 border-r border-slate-100 flex items-center justify-center font-bold text-slate-400">
-        {position}
+      {/* Client indicator */}
+      <div className="w-36 bg-slate-50 border-r border-slate-100 flex items-center justify-center px-3 text-center">
+        <span className="text-xs font-semibold text-primary leading-tight">{clientName}</span>
       </div>
 
       {/* Employee Drop Zone */}
@@ -319,7 +319,7 @@ export default function PlanDetailPage() {
               <div className="flex-1 bg-slate-50/50 rounded-2xl border border-border shadow-inner p-6 overflow-auto">
                 <div className="max-w-4xl mx-auto space-y-3">
                   <div className="flex text-sm font-semibold text-muted-foreground mb-4 px-2">
-                    <div className="w-12 text-center">Pos.</div>
+                    <div className="w-36 text-center">Client</div>
                     <div className="flex-1 px-4">Employé (Signaleur)</div>
                     <div className="flex-1 px-4">Véhicule (Pick-up)</div>
                   </div>
@@ -332,6 +332,7 @@ export default function PlanDetailPage() {
                       employees={employees}
                       pickups={pickups}
                       onRemove={handleRemove}
+                      clientName={plan.clientName}
                     />
                   ))}
                 </div>
@@ -378,7 +379,7 @@ export default function PlanDetailPage() {
         <table className="w-full border-collapse border border-black text-sm">
           <thead>
             <tr className="bg-gray-100">
-              <th className="border border-black p-3 text-center w-16">Pos</th>
+              <th className="border border-black p-3 text-left w-40">Client</th>
               <th className="border border-black p-3 text-left w-1/2">Signaleurs / Employés</th>
               <th className="border border-black p-3 text-left w-1/2">Véhicules / Pick-ups</th>
               <th className="border border-black p-3 text-left w-48">Signature / Note</th>
@@ -395,7 +396,7 @@ export default function PlanDetailPage() {
               
               return (
                 <tr key={pos} className="h-16">
-                  <td className="border border-black p-2 text-center font-bold">{pos}</td>
+                  <td className="border border-black p-2 font-semibold text-sm">{plan.clientName}</td>
                   <td className="border border-black p-2">
                     {emp ? (
                       <div className="font-semibold text-base">{emp.firstName} {emp.lastName} <span className="text-gray-500 text-xs font-normal">({emp.role || 'Signaleur'})</span></div>
