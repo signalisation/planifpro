@@ -29,16 +29,21 @@ export default function PlansPage() {
   const createMutation = useCreatePlan();
   const deleteMutation = useDeletePlan();
 
+  const localToday = () => {
+    const n = new Date();
+    return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}-${String(n.getDate()).padStart(2,'0')}`;
+  };
+
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      date: new Date().toISOString().split('T')[0],
+      date: localToday(),
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const d = new Date(values.date);
+      const d = new Date(values.date + 'T12:00:00');
       const label = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const autoName = `Plan du ${label}`;
       const result = await createMutation.mutateAsync({
@@ -98,7 +103,7 @@ export default function PlansPage() {
             <Dialog open={isDialogOpen} onOpenChange={(val) => {
               setIsDialogOpen(val);
               if (!val) form.reset();
-              if (val) form.setValue('date', new Date().toISOString().split('T')[0]);
+              if (val) form.setValue('date', localToday());
             }}>
               <DialogTrigger asChild>
                 <Button className="rounded-xl shadow-lg shadow-primary/20 gap-2 shrink-0">
@@ -158,7 +163,7 @@ export default function PlansPage() {
                     <Building2 className="h-4 w-4" /> {plan.clientName}
                   </div>
                   <div className="mt-auto pt-4 border-t border-border flex items-center justify-between text-sm">
-                    <span className="font-medium">{format(new Date(plan.date), 'dd/MM/yyyy')}</span>
+                    <span className="font-medium">{format(new Date(plan.date + 'T12:00:00'), 'dd/MM/yyyy')}</span>
                     <span className="text-primary font-semibold flex items-center gap-1 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all duration-300">
                       Ouvrir <ArrowRight className="h-4 w-4" />
                     </span>

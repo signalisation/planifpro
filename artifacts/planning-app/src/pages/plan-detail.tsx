@@ -584,7 +584,7 @@ export default function PlanDetailPage() {
                 <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium flex-wrap">
                   <span className="flex items-center gap-1.5">
                     <CalendarDays className="h-4 w-4" />
-                    {format(new Date(plan.date), 'EEEE d MMMM yyyy', { locale: fr })}
+                    {format(new Date(plan.date + 'T12:00:00'), 'EEEE d MMMM yyyy', { locale: fr })}
                   </span>
                   <span className="text-xs text-slate-400 italic">Les dates d'intervention se définissent par bloc client</span>
                 </div>
@@ -696,7 +696,7 @@ export default function PlanDetailPage() {
             <h2 className="text-xl font-semibold">{plan.name}</h2>
           </div>
           <div className="text-right">
-            <div className="text-md">Date : {format(new Date(plan.date), 'dd/MM/yyyy')}</div>
+            <div className="text-md">Date : {format(new Date(plan.date + 'T12:00:00'), 'dd/MM/yyyy')}</div>
             <div className="text-sm text-gray-500 mt-1">Statut : {plan.status === 'confirmed' ? 'Confirmé' : 'Brouillon'}</div>
           </div>
         </div>

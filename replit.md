@@ -100,6 +100,48 @@ Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used b
 
 Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
 
+## PlanifPro — Architecture Clé
+
+### Encodage des assignments (plans)
+
+Les assignments (table `assignments`) encodent à la fois les métadonnées de blocs clients et les ressources affectées :
+
+- **Position `bi×200`** : ligne de métadonnées du bloc `bi`. Notes = JSON `{sd, st, ed, et}` (startDate, startTime, endDate, endTime au format "YYYY-MM-DD" / "HH:MM")
+- **Positions `bi×200+1..100`** : IDs d'employés du bloc `bi`
+- **Positions `bi×200+101..200`** : IDs de véhicules du bloc `bi`
+- Chargement : `Math.floor(pos/200)` = index de bloc, `pos % 200` = position locale (0 = méta)
+
+### Logique de disponibilité (`/api/plans/busy-resources`)
+
+Le endpoint accepte :
+- `date` : date du plan en cours d'édition (YYYY-MM-DD)
+- `excludePlanId` : ID du plan courant à exclure
+- `clientNow` : date+heure locale du navigateur ("YYYY-MM-DDTHH:MM") — **obligatoire pour éviter les erreurs de fuseau horaire**
+
+Algorithme :
+1. Charge TOUS les plans et TOUS leurs assignments (sauf `excludePlanId`)
+2. Parse les lignes de métadonnées (position % 200 === 0) pour extraire `{sd, ed, et}`
+3. Sélectionne les blocs dont `startDate ≤ date ≤ endDate` (chevauchement de date)
+4. Fallback sans métadonnées : utilise `plan.date = date` comme critère
+5. Pour chaque bloc actif : compare `endTime > nowTime` (heure locale fournie par le client)
+
+### Gestion des dates — piège timezone JS
+
+`new Date("YYYY-MM-DD")` est parsé comme **minuit UTC** → décalage de -1 jour en heure locale (ex: France UTC+1).
+
+**Pattern correct pour affichage** :
+```typescript
+new Date("YYYY-MM-DD" + "T12:00:00")  // midi local, sans décalage UTC
+```
+
+**Pattern correct pour la date du jour** :
+```typescript
+const now = new Date();
+`${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`
+```
+
+Ne jamais utiliser `new Date().toISOString().split('T')[0]` pour la date locale (donne la date UTC).
+
 ### `scripts` (`@workspace/scripts`)
 
 Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
