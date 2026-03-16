@@ -9,17 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useListPlans, useCreatePlan, useListClients, useDeletePlan } from "@workspace/api-client-react";
 import { CalendarDays, Plus, Calendar as CalIcon, Search, Loader2, ArrowRight, Trash2, Building2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const formSchema = z.object({
-  name: z.string().min(2, "Nom requis"),
-  clientId: z.coerce.number().min(1, "Client requis"),
   date: z.string().min(10, "Date requise"),
-  notes: z.string().optional(),
 });
 
 export default function PlansPage() {
@@ -37,16 +33,19 @@ export default function PlansPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: "",
-      clientId: 0,
       date: new Date().toISOString().split('T')[0],
-      notes: "",
     },
   });
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
-      const result = await createMutation.mutateAsync({ data: { ...values, status: "draft" } });
+      const d = new Date(values.date);
+      const label = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const autoName = `Plan du ${label}`;
+      const firstClientId = clients?.[0]?.id ?? 1;
+      const result = await createMutation.mutateAsync({
+        data: { name: autoName, clientId: firstClientId, date: values.date, status: "draft" }
+      });
       toast({ title: "Plan créé" });
       queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
       setIsDialogOpen(false);
@@ -114,28 +113,8 @@ export default function PlansPage() {
                 </DialogHeader>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-                    <FormField control={form.control} name="name" render={({ field }) => (
-                      <FormItem><FormLabel>Nom du plan *</FormLabel><FormControl><Input {...field} placeholder="Ex: Chantier Autoroute A4" /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="clientId" render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Client *</FormLabel>
-                        <Select onValueChange={field.onChange} defaultValue={field.value ? String(field.value) : undefined}>
-                          <FormControl><SelectTrigger><SelectValue placeholder="Sélectionnez un client" /></SelectTrigger></FormControl>
-                          <SelectContent>
-                            {clients?.map(c => (
-                              <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <FormMessage />
-                      </FormItem>
-                    )} />
                     <FormField control={form.control} name="date" render={({ field }) => (
                       <FormItem><FormLabel>Date d'intervention *</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem>
-                    )} />
-                    <FormField control={form.control} name="notes" render={({ field }) => (
-                      <FormItem><FormLabel>Notes (Optionnel)</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
                     )} />
                     <DialogFooter className="pt-4">
                       <Button type="submit" disabled={createMutation.isPending}>
