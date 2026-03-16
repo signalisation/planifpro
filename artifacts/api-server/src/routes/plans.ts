@@ -129,7 +129,7 @@ router.get("/busy-resources", async (req, res) => {
     if (meta.ed < todayStr) return false;  // block ended before today → free
     // Block ends today → compare time
     if (!meta.et) return true;             // no end time → assume whole day
-    return meta.et > nowTime;             // busy until endTime passes
+    return meta.et >= nowTime;            // busy through end minute; free from next minute
   };
 
   const busyEmpIds = new Set<number>();
