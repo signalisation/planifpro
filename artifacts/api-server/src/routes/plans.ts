@@ -9,7 +9,7 @@ import {
   SavePlanAssignmentsParams,
   SavePlanAssignmentsBody,
 } from "@workspace/api-zod";
-import { eq } from "drizzle-orm";
+import { eq, and, ne, inArray } from "drizzle-orm";
 
 const router = Router();
 
@@ -18,6 +18,8 @@ const CreatePlanBodyFixed = z.object({
   name: z.string(),
   clientId: z.number().optional(),
   date: z.string(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
   notes: z.string().optional(),
   status: z.enum(["draft", "confirmed", "completed"]).optional(),
 });
@@ -26,8 +28,46 @@ const UpdatePlanBodyFixed = z.object({
   name: z.string().optional(),
   clientId: z.number().optional(),
   date: z.string().optional(),
+  startTime: z.string().optional(),
+  endTime: z.string().optional(),
   notes: z.string().optional(),
   status: z.enum(["draft", "confirmed", "completed"]).optional(),
+});
+
+router.get("/busy-resources", async (req, res) => {
+  const { date, excludePlanId } = req.query as { date?: string; excludePlanId?: string };
+  if (!date) return res.json({ busyEmpIds: [], busyPicIds: [] });
+
+  const now = new Date();
+  const nowTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+  const todayStr = now.toISOString().split('T')[0];
+
+  const planQuery = db.select({ id: plansTable.id, endTime: plansTable.endTime })
+    .from(plansTable)
+    .where(and(eq(plansTable.date, date), excludePlanId ? ne(plansTable.id, Number(excludePlanId)) : undefined));
+
+  const otherPlans = await planQuery;
+  // Only plans that are still "ongoing" (no endTime means whole day, or endTime hasn't passed yet)
+  const busyPlanIds = otherPlans
+    .filter(p => {
+      if (date !== todayStr) return true; // future/past day — always busy
+      if (!p.endTime) return true;        // no end time — treat as whole day
+      return p.endTime > nowTime;         // end time is in the future
+    })
+    .map(p => p.id);
+
+  if (busyPlanIds.length === 0) return res.json({ busyEmpIds: [], busyPicIds: [] });
+
+  const assignments = await db.select({
+    employeeId: assignmentsTable.employeeId,
+    pickupId: assignmentsTable.pickupId,
+  }).from(assignmentsTable).where(
+    inArray(assignmentsTable.planId, busyPlanIds)
+  );
+
+  const busyEmpIds = [...new Set(assignments.map(a => a.employeeId).filter(Boolean))] as number[];
+  const busyPicIds = [...new Set(assignments.map(a => a.pickupId).filter(Boolean))] as number[];
+  res.json({ busyEmpIds, busyPicIds });
 });
 
 router.get("/", async (_req, res) => {
@@ -38,6 +78,8 @@ router.get("/", async (_req, res) => {
       clientId: plansTable.clientId,
       clientName: clientsTable.name,
       date: plansTable.date,
+      startTime: plansTable.startTime,
+      endTime: plansTable.endTime,
       notes: plansTable.notes,
       status: plansTable.status,
       createdAt: plansTable.createdAt,
@@ -54,6 +96,8 @@ router.post("/", async (req, res) => {
     name: body.name,
     clientId: body.clientId ?? null,
     date: body.date,
+    startTime: body.startTime ?? null,
+    endTime: body.endTime ?? null,
     notes: body.notes ?? null,
     status: body.status ?? "draft",
   }).returning();
@@ -72,6 +116,8 @@ router.get("/:id", async (req, res) => {
       clientId: plansTable.clientId,
       clientName: clientsTable.name,
       date: plansTable.date,
+      startTime: plansTable.startTime,
+      endTime: plansTable.endTime,
       notes: plansTable.notes,
       status: plansTable.status,
       createdAt: plansTable.createdAt,
@@ -131,6 +177,8 @@ router.put("/:id", async (req, res) => {
   if (body.name !== undefined) updateData.name = body.name;
   if (body.clientId !== undefined) updateData.clientId = body.clientId;
   if (body.date !== undefined) updateData.date = body.date;
+  if (body.startTime !== undefined) updateData.startTime = body.startTime || null;
+  if (body.endTime !== undefined) updateData.endTime = body.endTime || null;
   if (body.notes !== undefined) updateData.notes = body.notes;
   if (body.status !== undefined) updateData.status = body.status;
 
@@ -185,6 +233,8 @@ router.post("/:id/assignments", async (req, res) => {
       clientId: plansTable.clientId,
       clientName: clientsTable.name,
       date: plansTable.date,
+      startTime: plansTable.startTime,
+      endTime: plansTable.endTime,
       notes: plansTable.notes,
       status: plansTable.status,
       createdAt: plansTable.createdAt,

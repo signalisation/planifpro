@@ -8,13 +8,18 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
   DropdownMenuSubTrigger, DropdownMenuTrigger
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter
+} from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import {
   useGetPlan, useListEmployees, useListPickups, useListClients,
   useSavePlanAssignments, useUpdatePlan
@@ -22,7 +27,7 @@ import {
 import {
   Printer, Save, Check, User, Truck, GripVertical,
   CalendarDays, Building2, X, Plus, Trash2, MoreHorizontal,
-  ArrowRight, ExternalLink
+  ArrowRight, ExternalLink, Clock, Pencil
 } from "lucide-react";
 import type { Employee, Pickup, Client } from "@workspace/api-client-react/src/generated/api.schemas";
 
@@ -76,7 +81,7 @@ function DraggablePickup({ pickup }: { pickup: Pickup }) {
 function ClientBlockCard({
   block, employees, pickups, allBlocks,
   onRemoveEmployee, onRemovePickup, onRemoveBlock,
-  onMoveEmployee, onMovePickup,
+  onMoveEmployee, onMovePickup, onEditDates,
 }: {
   block: ClientBlock;
   employees: Employee[];
@@ -87,6 +92,7 @@ function ClientBlockCard({
   onRemoveBlock: (uid: string) => void;
   onMoveEmployee: (fromUid: string, toUid: string, id: number) => void;
   onMovePickup: (fromUid: string, toUid: string, id: number) => void;
+  onEditDates: () => void;
 }) {
   const empZoneId = `drop-emp-${block.uid}`;
   const picZoneId = `drop-pic-${block.uid}`;
@@ -159,6 +165,9 @@ function ClientBlockCard({
                         <ExternalLink className="h-3.5 w-3.5" /> Voir la fiche
                       </a>
                     </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onEditDates} className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" /> Modifier les dates
+                    </DropdownMenuItem>
                     {otherBlocks.length > 0 && (
                       <DropdownMenuSub>
                         <DropdownMenuSubTrigger className="flex items-center gap-2">
@@ -210,6 +219,9 @@ function ClientBlockCard({
                       <a href="/vehicules" className="flex items-center gap-2 cursor-pointer">
                         <ExternalLink className="h-3.5 w-3.5" /> Voir les détails
                       </a>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={onEditDates} className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5" /> Modifier les dates
                     </DropdownMenuItem>
                     {otherBlocks.length > 0 && (
                       <DropdownMenuSub>
@@ -309,6 +321,24 @@ export default function PlanDetailPage() {
   const [clientBlocks, setClientBlocks] = useState<ClientBlock[]>([]);
   const [isSaved, setIsSaved] = useState(true);
 
+  // Date/time editing dialog
+  const [dateDialogOpen, setDateDialogOpen] = useState(false);
+  const [editDate, setEditDate] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
+
+  // Busy resources from other plans on the same date
+  const { data: busyResources } = useQuery<{ busyEmpIds: number[]; busyPicIds: number[] }>({
+    queryKey: ['/api/plans/busy-resources', plan?.date, planId],
+    queryFn: async () => {
+      if (!plan?.date) return { busyEmpIds: [], busyPicIds: [] };
+      const r = await fetch(`/api/plans/busy-resources?date=${plan.date}&excludePlanId=${planId}`);
+      return r.json();
+    },
+    enabled: !!plan?.date,
+    refetchInterval: 60_000,
+  });
+
   // Load assignments from DB on mount
   useEffect(() => {
     if (!plan || !clients) return;
@@ -402,6 +432,26 @@ export default function PlanDetailPage() {
     setIsSaved(false);
   };
 
+  const handleOpenDateDialog = () => {
+    setEditDate(plan?.date ?? '');
+    setEditStartTime((plan as any)?.startTime ?? '');
+    setEditEndTime((plan as any)?.endTime ?? '');
+    setDateDialogOpen(true);
+  };
+
+  const handleSaveDates = async () => {
+    try {
+      await updateMutation.mutateAsync({
+        id: planId,
+        data: { date: editDate, startTime: editStartTime || undefined, endTime: editEndTime || undefined } as any
+      });
+      setDateDialogOpen(false);
+      toast({ title: "Dates mises à jour" });
+    } catch {
+      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
+    }
+  };
+
   const handleSave = async () => {
     try {
       const assignments: any[] = [];
@@ -428,12 +478,20 @@ export default function PlanDetailPage() {
   }
   if (!plan) return <Layout><div>Plan introuvable</div></Layout>;
 
-  // Resources already used across ALL blocks
+  // Resources already used across ALL blocks + busy in other plans
   const allUsedEmpIds = clientBlocks.flatMap(b => b.empIds);
   const allUsedPicIds = clientBlocks.flatMap(b => b.picIds);
-  const availableEmployees = employees?.filter(e => e.status === 'active' && !allUsedEmpIds.includes(e.id!)) || [];
-  const availablePickups = pickups?.filter(p => p.status === 'available' && !allUsedPicIds.includes(p.id!)) || [];
+  const busyEmpIds = busyResources?.busyEmpIds ?? [];
+  const busyPicIds = busyResources?.busyPicIds ?? [];
+  const availableEmployees = employees?.filter(e =>
+    e.status === 'active' && !allUsedEmpIds.includes(e.id!) && !busyEmpIds.includes(e.id!)
+  ) || [];
+  const availablePickups = pickups?.filter(p =>
+    p.status === 'available' && !allUsedPicIds.includes(p.id!) && !busyPicIds.includes(p.id!)
+  ) || [];
   const usedClientIds = clientBlocks.map(b => b.clientId);
+  const planStartTime = (plan as any).startTime as string | null;
+  const planEndTime = (plan as any).endTime as string | null;
 
   return (
     <>
@@ -450,8 +508,20 @@ export default function PlanDetailPage() {
                     {plan.status === 'confirmed' ? 'Confirmé' : 'Brouillon'}
                   </span>
                 </div>
-                <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium">
-                  <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{format(new Date(plan.date), 'EEEE d MMMM yyyy', { locale: fr })}</span>
+                <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium flex-wrap">
+                  <span className="flex items-center gap-1.5">
+                    <CalendarDays className="h-4 w-4" />
+                    {format(new Date(plan.date), 'EEEE d MMMM yyyy', { locale: fr })}
+                  </span>
+                  {(planStartTime || planEndTime) && (
+                    <span className="flex items-center gap-1.5">
+                      <Clock className="h-4 w-4" />
+                      {planStartTime || '--:--'} → {planEndTime || '--:--'}
+                    </span>
+                  )}
+                  <button onClick={handleOpenDateDialog} className="flex items-center gap-1 text-xs text-primary hover:underline">
+                    <Pencil className="h-3 w-3" /> Modifier les dates
+                  </button>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -518,6 +588,7 @@ export default function PlanDetailPage() {
                     onRemoveBlock={handleRemoveBlock}
                     onMoveEmployee={handleMoveEmployee}
                     onMovePickup={handleMovePickup}
+                    onEditDates={handleOpenDateDialog}
                   />
                 ))}
 
@@ -608,6 +679,42 @@ export default function PlanDetailPage() {
           <div>Page 1/1</div>
         </div>
       </div>
+
+      {/* Date/Time Edit Dialog */}
+      <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
+        <DialogContent className="sm:max-w-[420px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="h-5 w-5 text-primary" /> Modifier les dates
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 pt-2">
+            <div>
+              <label className="text-sm font-medium mb-1 block">Date d'intervention</label>
+              <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-sm font-medium mb-1 block">Heure de début</label>
+                <Input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} placeholder="08:00" />
+              </div>
+              <div>
+                <label className="text-sm font-medium mb-1 block">Heure de fin</label>
+                <Input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} placeholder="17:00" />
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Après l'heure de fin, les ressources assignées à ce plan seront de nouveau disponibles pour d'autres interventions.
+            </p>
+          </div>
+          <DialogFooter className="pt-4">
+            <Button variant="outline" onClick={() => setDateDialogOpen(false)}>Annuler</Button>
+            <Button onClick={handleSaveDates} disabled={updateMutation.isPending}>
+              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

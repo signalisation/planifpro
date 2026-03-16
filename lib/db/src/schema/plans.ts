@@ -10,6 +10,8 @@ export const plansTable = pgTable("plans", {
   name: text("name").notNull(),
   clientId: integer("client_id").references(() => clientsTable.id),
   date: date("date").notNull(),
+  startTime: text("start_time"),
+  endTime: text("end_time"),
   notes: text("notes"),
   status: text("status").notNull().default("draft"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
