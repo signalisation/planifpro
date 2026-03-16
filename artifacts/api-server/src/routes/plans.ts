@@ -1,9 +1,8 @@
 import { Router } from "express";
+import { z } from "zod/v4";
 import { db } from "@workspace/db";
 import { plansTable, assignmentsTable, clientsTable, employeesTable, pickupsTable } from "@workspace/db/schema";
 import {
-  CreatePlanBody,
-  UpdatePlanBody,
   UpdatePlanParams,
   GetPlanParams,
   DeletePlanParams,
@@ -13,6 +12,23 @@ import {
 import { eq } from "drizzle-orm";
 
 const router = Router();
+
+// Override date field to accept string (JSON sends strings, not Date objects)
+const CreatePlanBodyFixed = z.object({
+  name: z.string(),
+  clientId: z.number(),
+  date: z.string(),
+  notes: z.string().optional(),
+  status: z.enum(["draft", "confirmed", "completed"]).optional(),
+});
+
+const UpdatePlanBodyFixed = z.object({
+  name: z.string().optional(),
+  clientId: z.number().optional(),
+  date: z.string().optional(),
+  notes: z.string().optional(),
+  status: z.enum(["draft", "confirmed", "completed"]).optional(),
+});
 
 router.get("/", async (_req, res) => {
   const plans = await db
@@ -33,10 +49,16 @@ router.get("/", async (_req, res) => {
 });
 
 router.post("/", async (req, res) => {
-  const body = CreatePlanBody.parse(req.body);
-  const [plan] = await db.insert(plansTable).values(body).returning();
+  const body = CreatePlanBodyFixed.parse(req.body);
+  const [plan] = await db.insert(plansTable).values({
+    name: body.name,
+    clientId: body.clientId,
+    date: body.date,
+    notes: body.notes ?? null,
+    status: body.status ?? "draft",
+  }).returning();
   const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, plan.clientId));
-  res.status(201).json({ ...plan, clientName: client?.name });
+  res.status(201).json({ ...plan, clientName: client?.name ?? null });
 });
 
 router.get("/:id", async (req, res) => {
@@ -56,7 +78,7 @@ router.get("/:id", async (req, res) => {
     .leftJoin(clientsTable, eq(plansTable.clientId, clientsTable.id))
     .where(eq(plansTable.id, id));
 
-  if (!plan) return res.status(404).json({ error: "Plan not found" });
+  if (!plan) return res.status(404).json({ error: "Plan introuvable" });
 
   const assignments = await db
     .select({
@@ -101,11 +123,18 @@ router.get("/:id", async (req, res) => {
 
 router.put("/:id", async (req, res) => {
   const { id } = UpdatePlanParams.parse({ id: Number(req.params.id) });
-  const body = UpdatePlanBody.parse(req.body);
-  const [plan] = await db.update(plansTable).set(body).where(eq(plansTable.id, id)).returning();
-  if (!plan) return res.status(404).json({ error: "Plan not found" });
+  const body = UpdatePlanBodyFixed.parse(req.body);
+  const updateData: any = {};
+  if (body.name !== undefined) updateData.name = body.name;
+  if (body.clientId !== undefined) updateData.clientId = body.clientId;
+  if (body.date !== undefined) updateData.date = body.date;
+  if (body.notes !== undefined) updateData.notes = body.notes;
+  if (body.status !== undefined) updateData.status = body.status;
+
+  const [plan] = await db.update(plansTable).set(updateData).where(eq(plansTable.id, id)).returning();
+  if (!plan) return res.status(404).json({ error: "Plan introuvable" });
   const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, plan.clientId));
-  res.json({ ...plan, clientName: client?.name });
+  res.json({ ...plan, clientName: client?.name ?? null });
 });
 
 router.delete("/:id", async (req, res) => {
