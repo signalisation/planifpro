@@ -37,13 +37,13 @@ function DraggableEmployee({ employee }: { employee: Employee }) {
   });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      className={`p-3 bg-white border border-slate-200 rounded-xl shadow-sm flex items-center gap-3 cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-40 ring-2 ring-primary' : ''}`}>
-      <div className="bg-blue-50 p-2 rounded-lg text-blue-600"><User className="h-4 w-4" /></div>
+      className={`px-2.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center gap-2 cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-40 ring-2 ring-primary' : ''}`}>
+      <div className="bg-blue-50 p-1.5 rounded-md text-blue-600 shrink-0"><User className="h-3.5 w-3.5" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-semibold text-sm truncate">{employee.firstName} {employee.lastName}</div>
-        <div className="text-xs text-muted-foreground">{employee.role || 'Signaleur'}</div>
+        <div className="font-semibold text-xs truncate">{employee.firstName} {employee.lastName}</div>
+        <div className="text-[10px] text-muted-foreground">{employee.role || 'Signaleur'}</div>
       </div>
-      <GripVertical className="h-4 w-4 text-slate-300 shrink-0" />
+      <GripVertical className="h-3.5 w-3.5 text-slate-300 shrink-0" />
     </div>
   );
 }
@@ -55,13 +55,13 @@ function DraggablePickup({ pickup }: { pickup: Pickup }) {
   });
   return (
     <div ref={setNodeRef} {...listeners} {...attributes}
-      className={`p-3 bg-white border border-slate-200 rounded-xl shadow-sm flex items-center gap-3 cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-40 ring-2 ring-primary' : ''}`}>
-      <div className="bg-amber-50 p-2 rounded-lg text-amber-600"><Truck className="h-4 w-4" /></div>
+      className={`px-2.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center gap-2 cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-40 ring-2 ring-primary' : ''}`}>
+      <div className="bg-amber-50 p-1.5 rounded-md text-amber-600 shrink-0"><Truck className="h-3.5 w-3.5" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-bold text-sm bg-slate-100 px-1 rounded inline-block">{pickup.plateNumber}</div>
-        <div className="text-xs text-muted-foreground mt-0.5">{pickup.model || 'Véhicule'}</div>
+        <div className="font-mono font-bold text-xs bg-slate-100 px-1 rounded inline-block">{pickup.plateNumber}</div>
+        <div className="text-[10px] text-muted-foreground mt-0.5">{pickup.model || 'Véhicule'}</div>
       </div>
-      <GripVertical className="h-4 w-4 text-slate-300 shrink-0" />
+      <GripVertical className="h-3.5 w-3.5 text-slate-300 shrink-0" />
     </div>
   );
 }
@@ -87,41 +87,40 @@ function ClientBlockCard({
   const assignedPics = block.picIds.map(id => pickups.find(p => p.id === id)).filter(Boolean) as Pickup[];
 
   return (
-    <div className="bg-white border border-border rounded-2xl shadow-sm overflow-hidden">
+    <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
       {/* Column headers */}
-      <div className="grid grid-cols-[200px_1fr_1fr] divide-x divide-border border-b border-border bg-slate-50/60">
-        <div className="px-5 py-3 flex items-center gap-2">
-          <Building2 className="h-4 w-4 text-primary shrink-0" />
-          <span className="text-sm font-semibold text-foreground">Client</span>
+      <div className="grid grid-cols-[160px_1fr_1fr] divide-x divide-border border-b border-border bg-slate-50/60">
+        <div className="px-3 py-2 flex items-center gap-1.5">
+          <Building2 className="h-3.5 w-3.5 text-primary shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Client</span>
         </div>
-        <div className="px-5 py-3 flex items-center gap-2">
-          <User className="h-4 w-4 text-blue-600 shrink-0" />
-          <span className="text-sm font-semibold text-foreground">Signaleurs / Employés</span>
+        <div className="px-3 py-2 flex items-center gap-1.5">
+          <User className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Signaleurs / Employés</span>
         </div>
-        <div className="px-5 py-3 flex items-center gap-2">
-          <Truck className="h-4 w-4 text-amber-600 shrink-0" />
-          <span className="text-sm font-semibold text-foreground">Véhicules / Pick-ups</span>
-          <button onClick={() => onRemoveBlock(block.uid)} className="ml-auto text-slate-300 hover:text-red-500 transition-colors p-1 rounded" title="Supprimer ce bloc">
-            <Trash2 className="h-4 w-4" />
+        <div className="px-3 py-2 flex items-center gap-1.5">
+          <Truck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
+          <span className="text-xs font-semibold text-foreground">Véhicules / Pick-ups</span>
+          <button onClick={() => onRemoveBlock(block.uid)} className="ml-auto text-slate-300 hover:text-red-500 transition-colors p-0.5 rounded" title="Supprimer ce bloc">
+            <Trash2 className="h-3.5 w-3.5" />
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-[200px_1fr_1fr] divide-x divide-border min-h-[240px]">
+      <div className="grid grid-cols-[160px_1fr_1fr] divide-x divide-border min-h-[160px]">
         {/* Client Column */}
-        <div className="p-5 flex flex-col items-start bg-primary/3">
-          <div className="bg-primary/10 p-2.5 rounded-xl text-primary mb-3">
-            <Building2 className="h-5 w-5" />
+        <div className="p-3 flex flex-col items-start bg-primary/3">
+          <div className="bg-primary/10 p-1.5 rounded-lg text-primary mb-2">
+            <Building2 className="h-4 w-4" />
           </div>
-          <div className="font-display font-bold text-base text-foreground leading-tight">{block.clientName}</div>
-          <div className="text-xs text-muted-foreground mt-2">Glissez les ressources dans les colonnes correspondantes</div>
-          <div className="mt-4 flex flex-col gap-1.5 w-full">
-            <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-2.5 py-1.5">
-              <User className="h-3.5 w-3.5 shrink-0" />
+          <div className="font-display font-bold text-sm text-foreground leading-tight">{block.clientName}</div>
+          <div className="mt-3 flex flex-col gap-1 w-full">
+            <div className="flex items-center gap-1.5 text-[10px] text-blue-700 bg-blue-50 rounded px-2 py-1">
+              <User className="h-3 w-3 shrink-0" />
               <span className="font-semibold">{assignedEmps.length} employé{assignedEmps.length !== 1 ? 's' : ''}</span>
             </div>
-            <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
-              <Truck className="h-3.5 w-3.5 shrink-0" />
+            <div className="flex items-center gap-1.5 text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
+              <Truck className="h-3 w-3 shrink-0" />
               <span className="font-semibold">{assignedPics.length} véhicule{assignedPics.length !== 1 ? 's' : ''}</span>
             </div>
           </div>
@@ -129,44 +128,44 @@ function ClientBlockCard({
 
         <div className="contents">
           {/* Employees Drop Zone */}
-          <div ref={setEmpRef} className={`p-5 flex flex-col gap-3 transition-colors ${isOverEmp ? 'bg-blue-50/60' : 'bg-slate-50/30'}`}>
+          <div ref={setEmpRef} className={`p-3 flex flex-col gap-2 transition-colors ${isOverEmp ? 'bg-blue-50/60' : 'bg-slate-50/30'}`}>
             {assignedEmps.map(emp => (
-              <div key={emp.id} className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3 group">
-                <div className="bg-blue-100 p-2 rounded-md text-blue-700 shrink-0"><User className="h-4 w-4" /></div>
+              <div key={emp.id} className="flex items-center gap-2 bg-blue-50 border border-blue-100 rounded-lg px-2.5 py-2 group">
+                <div className="bg-blue-100 p-1 rounded text-blue-700 shrink-0"><User className="h-3.5 w-3.5" /></div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-semibold text-sm text-blue-900 truncate">{emp.firstName} {emp.lastName}</div>
-                  <div className="text-xs text-blue-700/70">{emp.role || 'Signaleur'}</div>
+                  <div className="font-semibold text-xs text-blue-900 truncate">{emp.firstName} {emp.lastName}</div>
+                  <div className="text-[10px] text-blue-700/70">{emp.role || 'Signaleur'}</div>
                 </div>
-                <button onClick={() => onRemoveEmployee(block.uid, emp.id)} className="text-blue-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 shrink-0">
-                  <X className="h-4 w-4" />
+                <button onClick={() => onRemoveEmployee(block.uid, emp.id)} className="text-blue-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
-            <div className={`flex-1 min-h-[80px] flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${isOverEmp ? 'border-blue-400 bg-blue-100/50' : 'border-slate-200'}`}>
-              <Plus className={`h-5 w-5 mb-1 ${isOverEmp ? 'text-blue-500' : 'text-slate-300'}`} />
-              <span className={`text-xs ${isOverEmp ? 'text-blue-600 font-semibold' : 'text-slate-400 italic'}`}>
+            <div className={`flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOverEmp ? 'border-blue-400 bg-blue-100/50' : 'border-slate-200'}`}>
+              <Plus className={`h-4 w-4 mb-0.5 ${isOverEmp ? 'text-blue-500' : 'text-slate-300'}`} />
+              <span className={`text-[10px] ${isOverEmp ? 'text-blue-600 font-semibold' : 'text-slate-400 italic'}`}>
                 {isOverEmp ? 'Déposez ici' : 'Glissez un employé ici'}
               </span>
             </div>
           </div>
 
           {/* Pickups Drop Zone */}
-          <div ref={setPicRef} className={`p-5 flex flex-col gap-3 transition-colors ${isOverPic ? 'bg-amber-50/60' : 'bg-slate-50/10'}`}>
+          <div ref={setPicRef} className={`p-3 flex flex-col gap-2 transition-colors ${isOverPic ? 'bg-amber-50/60' : 'bg-slate-50/10'}`}>
             {assignedPics.map(pic => (
-              <div key={pic.id} className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3 group">
-                <div className="bg-amber-100 p-2 rounded-md text-amber-700 shrink-0"><Truck className="h-4 w-4" /></div>
+              <div key={pic.id} className="flex items-center gap-2 bg-amber-50 border border-amber-100 rounded-lg px-2.5 py-2 group">
+                <div className="bg-amber-100 p-1 rounded text-amber-700 shrink-0"><Truck className="h-3.5 w-3.5" /></div>
                 <div className="flex-1 min-w-0">
-                  <div className="font-mono font-bold text-sm bg-white border border-amber-200 text-amber-900 px-1 rounded inline-block">{pic.plateNumber}</div>
-                  <div className="text-xs text-amber-700/70 mt-0.5">{pic.model || pic.brand}</div>
+                  <div className="font-mono font-bold text-xs bg-white border border-amber-200 text-amber-900 px-1 rounded inline-block">{pic.plateNumber}</div>
+                  <div className="text-[10px] text-amber-700/70 mt-0.5">{pic.model || pic.brand}</div>
                 </div>
-                <button onClick={() => onRemovePickup(block.uid, pic.id)} className="text-amber-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1 shrink-0">
-                  <X className="h-4 w-4" />
+                <button onClick={() => onRemovePickup(block.uid, pic.id)} className="text-amber-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                  <X className="h-3.5 w-3.5" />
                 </button>
               </div>
             ))}
-            <div className={`flex-1 min-h-[80px] flex flex-col items-center justify-center rounded-xl border-2 border-dashed transition-colors ${isOverPic ? 'border-amber-400 bg-amber-100/50' : 'border-slate-200'}`}>
-              <Plus className={`h-5 w-5 mb-1 ${isOverPic ? 'text-amber-500' : 'text-slate-300'}`} />
-              <span className={`text-xs ${isOverPic ? 'text-amber-600 font-semibold' : 'text-slate-400 italic'}`}>
+            <div className={`flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOverPic ? 'border-amber-400 bg-amber-100/50' : 'border-slate-200'}`}>
+              <Plus className={`h-4 w-4 mb-0.5 ${isOverPic ? 'text-amber-500' : 'text-slate-300'}`} />
+              <span className={`text-[10px] ${isOverPic ? 'text-amber-600 font-semibold' : 'text-slate-400 italic'}`}>
                 {isOverPic ? 'Déposez ici' : 'Glissez un véhicule ici'}
               </span>
             </div>

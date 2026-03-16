@@ -101,6 +101,7 @@ export default function PlansPage() {
             <Dialog open={isDialogOpen} onOpenChange={(val) => {
               setIsDialogOpen(val);
               if (!val) form.reset();
+              if (val) form.setValue('date', new Date().toISOString().split('T')[0]);
             }}>
               <DialogTrigger asChild>
                 <Button className="rounded-xl shadow-lg shadow-primary/20 gap-2 shrink-0">
