@@ -12,7 +12,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useListPlans, useCreatePlan, useListClients, useDeletePlan } from "@workspace/api-client-react";
-import { CalendarDays, Plus, Calendar as CalIcon, Search, Loader2, ArrowRight, Trash2 } from "lucide-react";
+import { CalendarDays, Plus, Calendar as CalIcon, Search, Loader2, ArrowRight, Trash2, Building2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
 const formSchema = z.object({
