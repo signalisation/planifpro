@@ -33,11 +33,15 @@ import type { Employee, Pickup, Client } from "@workspace/api-client-react/src/g
 
 // ---- Types ----
 interface ClientBlock {
-  uid: string;       // unique key for React (e.g. "block-1")
+  uid: string;
   clientId: number;
   clientName: string;
   empIds: number[];
   picIds: number[];
+  startDate?: string;  // "YYYY-MM-DD"
+  startTime?: string;  // "HH:mm"
+  endDate?: string;
+  endTime?: string;
 }
 
 // ---- Draggable Cards ----
@@ -92,7 +96,7 @@ function ClientBlockCard({
   onRemoveBlock: (uid: string) => void;
   onMoveEmployee: (fromUid: string, toUid: string, id: number) => void;
   onMovePickup: (fromUid: string, toUid: string, id: number) => void;
-  onEditDates: () => void;
+  onEditDates: (uid: string) => void;
 }) {
   const empZoneId = `drop-emp-${block.uid}`;
   const picZoneId = `drop-pic-${block.uid}`;
@@ -131,7 +135,33 @@ function ClientBlockCard({
             <Building2 className="h-4 w-4" />
           </div>
           <div className="font-display font-bold text-sm text-foreground leading-tight">{block.clientName}</div>
-          <div className="mt-3 flex flex-col gap-1 w-full">
+          {/* Date/time info */}
+          <div className="mt-2 w-full">
+            {(block.startDate || block.endDate) ? (
+              <div className="text-[10px] text-slate-600 space-y-0.5">
+                {block.startDate && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-2.5 w-2.5 text-green-600 shrink-0" />
+                    <span className="font-semibold text-green-700">Début :</span>
+                    <span>{new Date(block.startDate + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}{block.startTime ? ` ${block.startTime}` : ''}</span>
+                  </div>
+                )}
+                {block.endDate && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="h-2.5 w-2.5 text-red-500 shrink-0" />
+                    <span className="font-semibold text-red-600">Fin :</span>
+                    <span>{new Date(block.endDate + 'T00:00').toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' })}{block.endTime ? ` ${block.endTime}` : ''}</span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-[10px] text-slate-400 italic">Aucune date fixée</div>
+            )}
+            <button onClick={() => onEditDates(block.uid)} className="mt-1.5 flex items-center gap-1 text-[10px] text-primary/70 hover:text-primary transition-colors">
+              <Pencil className="h-2.5 w-2.5" /> Modifier les dates
+            </button>
+          </div>
+          <div className="mt-2 flex flex-col gap-1 w-full">
             <div className="flex items-center gap-1.5 text-[10px] text-blue-700 bg-blue-50 rounded px-2 py-1">
               <User className="h-3 w-3 shrink-0" />
               <span className="font-semibold">{assignedEmps.length} signaleur{assignedEmps.length !== 1 ? 's' : ''}</span>
@@ -165,7 +195,7 @@ function ClientBlockCard({
                         <ExternalLink className="h-3.5 w-3.5" /> Voir la fiche
                       </a>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onEditDates} className="flex items-center gap-2">
+                    <DropdownMenuItem onClick={() => onEditDates(block.uid)} className="flex items-center gap-2">
                       <Clock className="h-3.5 w-3.5" /> Modifier les dates
                     </DropdownMenuItem>
                     {otherBlocks.length > 0 && (
@@ -220,7 +250,7 @@ function ClientBlockCard({
                         <ExternalLink className="h-3.5 w-3.5" /> Voir les détails
                       </a>
                     </DropdownMenuItem>
-                    <DropdownMenuItem onClick={onEditDates} className="flex items-center gap-2">
+                    <DropdownMenuItem onClick={() => onEditDates(block.uid)} className="flex items-center gap-2">
                       <Clock className="h-3.5 w-3.5" /> Modifier les dates
                     </DropdownMenuItem>
                     {otherBlocks.length > 0 && (
@@ -321,10 +351,12 @@ export default function PlanDetailPage() {
   const [clientBlocks, setClientBlocks] = useState<ClientBlock[]>([]);
   const [isSaved, setIsSaved] = useState(true);
 
-  // Date/time editing dialog
+  // Per-block date/time editing dialog
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
-  const [editDate, setEditDate] = useState('');
+  const [editingBlockUid, setEditingBlockUid] = useState<string | null>(null);
+  const [editStartDate, setEditStartDate] = useState('');
   const [editStartTime, setEditStartTime] = useState('');
+  const [editEndDate, setEditEndDate] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
 
   // Busy resources from other plans on the same date
@@ -344,19 +376,35 @@ export default function PlanDetailPage() {
     if (!plan || !clients) return;
 
     if (plan.assignments && plan.assignments.length > 0) {
-      // Group by clientId
-      const blockMap = new Map<number, ClientBlock>();
-      plan.assignments.forEach((a: any) => {
+      // Sort by position to maintain block order
+      const sorted = [...plan.assignments].sort((a: any, b: any) => (a.position ?? 0) - (b.position ?? 0));
+      // Group by block index (bi = Math.floor(position / 200))
+      const blocksByIdx = new Map<number, ClientBlock>();
+      sorted.forEach((a: any) => {
+        const pos: number = a.position ?? 0;
+        const bi = Math.floor(pos / 200);
+        const localPos = pos % 200;
         const cid: number = a.clientId ?? plan.clientId;
-        if (!blockMap.has(cid)) {
-          const clientName = clients?.find(c => c.id === cid)?.name ?? plan.clientName ?? '';
-          blockMap.set(cid, { uid: genUid(), clientId: cid, clientName, empIds: [], picIds: [] });
+        if (!blocksByIdx.has(bi)) {
+          const clientName = clients?.find((c: any) => c.id === cid)?.name ?? plan.clientName ?? '';
+          blocksByIdx.set(bi, { uid: genUid(), clientId: cid, clientName, empIds: [], picIds: [] });
         }
-        const blk = blockMap.get(cid)!;
-        if (a.employeeId) blk.empIds.push(a.employeeId);
-        if (a.pickupId) blk.picIds.push(a.pickupId);
+        const blk = blocksByIdx.get(bi)!;
+        // position 0 in block = metadata (dates stored in notes as JSON)
+        if (localPos === 0 && a.notes) {
+          try {
+            const meta = JSON.parse(a.notes);
+            blk.startDate = meta.sd ?? '';
+            blk.startTime = meta.st ?? '';
+            blk.endDate = meta.ed ?? '';
+            blk.endTime = meta.et ?? '';
+          } catch {}
+        } else {
+          if (a.employeeId) blk.empIds.push(a.employeeId);
+          if (a.pickupId) blk.picIds.push(a.pickupId);
+        }
       });
-      setClientBlocks(Array.from(blockMap.values()));
+      setClientBlocks(Array.from(blocksByIdx.values()));
     } else {
       // No assignments yet — start with empty blocks
       setClientBlocks([]);
@@ -432,30 +480,36 @@ export default function PlanDetailPage() {
     setIsSaved(false);
   };
 
-  const handleOpenDateDialog = () => {
-    setEditDate(plan?.date ?? '');
-    setEditStartTime((plan as any)?.startTime ?? '');
-    setEditEndTime((plan as any)?.endTime ?? '');
+  const handleOpenBlockDateDialog = (uid: string) => {
+    const blk = clientBlocks.find(b => b.uid === uid);
+    if (!blk) return;
+    setEditingBlockUid(uid);
+    setEditStartDate(blk.startDate ?? plan?.date ?? '');
+    setEditStartTime(blk.startTime ?? '');
+    setEditEndDate(blk.endDate ?? plan?.date ?? '');
+    setEditEndTime(blk.endTime ?? '');
     setDateDialogOpen(true);
   };
 
-  const handleSaveDates = async () => {
-    try {
-      await updateMutation.mutateAsync({
-        id: planId,
-        data: { date: editDate, startTime: editStartTime || undefined, endTime: editEndTime || undefined } as any
-      });
-      setDateDialogOpen(false);
-      toast({ title: "Dates mises à jour" });
-    } catch {
-      toast({ title: "Erreur lors de la mise à jour", variant: "destructive" });
-    }
+  const handleSaveDates = () => {
+    if (!editingBlockUid) return;
+    setClientBlocks(prev => prev.map(blk =>
+      blk.uid === editingBlockUid
+        ? { ...blk, startDate: editStartDate, startTime: editStartTime, endDate: editEndDate, endTime: editEndTime }
+        : blk
+    ));
+    setIsSaved(false);
+    setDateDialogOpen(false);
+    toast({ title: "Dates mises à jour — pensez à sauvegarder le plan" });
   };
 
   const handleSave = async () => {
     try {
       const assignments: any[] = [];
       clientBlocks.forEach((blk, bi) => {
+        // position bi*200 = block metadata (dates)
+        const meta = { sd: blk.startDate ?? '', st: blk.startTime ?? '', ed: blk.endDate ?? '', et: blk.endTime ?? '' };
+        assignments.push({ clientId: blk.clientId, position: bi * 200, notes: JSON.stringify(meta) });
         blk.empIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + i + 1, employeeId: id }));
         blk.picIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + 101 + i, pickupId: id }));
       });
@@ -490,9 +544,6 @@ export default function PlanDetailPage() {
     p.status === 'available' && !allUsedPicIds.includes(p.id!) && !busyPicIds.includes(p.id!)
   ) || [];
   const usedClientIds = clientBlocks.map(b => b.clientId);
-  const planStartTime = (plan as any).startTime as string | null;
-  const planEndTime = (plan as any).endTime as string | null;
-
   return (
     <>
       <Layout>
@@ -513,15 +564,7 @@ export default function PlanDetailPage() {
                     <CalendarDays className="h-4 w-4" />
                     {format(new Date(plan.date), 'EEEE d MMMM yyyy', { locale: fr })}
                   </span>
-                  {(planStartTime || planEndTime) && (
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="h-4 w-4" />
-                      {planStartTime || '--:--'} → {planEndTime || '--:--'}
-                    </span>
-                  )}
-                  <button onClick={handleOpenDateDialog} className="flex items-center gap-1 text-xs text-primary hover:underline">
-                    <Pencil className="h-3 w-3" /> Modifier les dates
-                  </button>
+                  <span className="text-xs text-slate-400 italic">Les dates d'intervention se définissent par bloc client</span>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -588,7 +631,7 @@ export default function PlanDetailPage() {
                     onRemoveBlock={handleRemoveBlock}
                     onMoveEmployee={handleMoveEmployee}
                     onMovePickup={handleMovePickup}
-                    onEditDates={handleOpenDateDialog}
+                    onEditDates={handleOpenBlockDateDialog}
                   />
                 ))}
 
@@ -653,8 +696,14 @@ export default function PlanDetailPage() {
               return Array.from({ length: rowCount }).map((_, i) => (
                 <tr key={`${blk.uid}-${i}`} className="h-14">
                   {i === 0 && (
-                    <td className="border border-black p-3 font-bold align-middle" rowSpan={rowCount}>
-                      {blk.clientName}
+                    <td className="border border-black p-3 align-middle" rowSpan={rowCount}>
+                      <div className="font-bold">{blk.clientName}</div>
+                      {(blk.startDate || blk.endDate) && (
+                        <div className="text-xs text-gray-600 mt-1 space-y-0.5">
+                          {blk.startDate && <div>Début : {new Date(blk.startDate + 'T00:00').toLocaleDateString('fr-FR')}{blk.startTime ? ` ${blk.startTime}` : ''}</div>}
+                          {blk.endDate && <div>Fin : {new Date(blk.endDate + 'T00:00').toLocaleDateString('fr-FR')}{blk.endTime ? ` ${blk.endTime}` : ''}</div>}
+                        </div>
+                      )}
                     </td>
                   )}
                   <td className="border border-black p-3">
@@ -680,38 +729,51 @@ export default function PlanDetailPage() {
         </div>
       </div>
 
-      {/* Date/Time Edit Dialog */}
+      {/* Per-Block Date/Time Edit Dialog */}
       <Dialog open={dateDialogOpen} onOpenChange={setDateDialogOpen}>
-        <DialogContent className="sm:max-w-[420px]">
+        <DialogContent className="sm:max-w-[460px]">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-primary" /> Modifier les dates
+              <Clock className="h-5 w-5 text-primary" />
+              Dates d'intervention — {clientBlocks.find(b => b.uid === editingBlockUid)?.clientName ?? ''}
             </DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 pt-2">
-            <div>
-              <label className="text-sm font-medium mb-1 block">Date d'intervention</label>
-              <Input type="date" value={editDate} onChange={e => setEditDate(e.target.value)} />
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="text-sm font-medium mb-1 block">Heure de début</label>
-                <Input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} placeholder="08:00" />
+          <div className="space-y-5 pt-2">
+            {/* Début */}
+            <div className="bg-green-50 border border-green-100 rounded-xl p-4 space-y-3">
+              <div className="text-xs font-bold text-green-700 uppercase tracking-wide">Début d'intervention</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Date de début</label>
+                  <Input type="date" value={editStartDate} onChange={e => setEditStartDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Heure de début</label>
+                  <Input type="time" value={editStartTime} onChange={e => setEditStartTime(e.target.value)} placeholder="08:00" />
+                </div>
               </div>
-              <div>
-                <label className="text-sm font-medium mb-1 block">Heure de fin</label>
-                <Input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} placeholder="17:00" />
+            </div>
+            {/* Fin */}
+            <div className="bg-red-50 border border-red-100 rounded-xl p-4 space-y-3">
+              <div className="text-xs font-bold text-red-600 uppercase tracking-wide">Fin d'intervention</div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Date de fin</label>
+                  <Input type="date" value={editEndDate} onChange={e => setEditEndDate(e.target.value)} />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1 block">Heure de fin</label>
+                  <Input type="time" value={editEndTime} onChange={e => setEditEndTime(e.target.value)} placeholder="17:00" />
+                </div>
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Après l'heure de fin, les ressources assignées à ce plan seront de nouveau disponibles pour d'autres interventions.
+              Les modifications sont appliquées localement. Pensez à sauvegarder le plan pour les conserver.
             </p>
           </div>
-          <DialogFooter className="pt-4">
+          <DialogFooter className="pt-2">
             <Button variant="outline" onClick={() => setDateDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSaveDates} disabled={updateMutation.isPending}>
-              {updateMutation.isPending ? 'Enregistrement...' : 'Enregistrer'}
-            </Button>
+            <Button onClick={handleSaveDates}>Appliquer</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
