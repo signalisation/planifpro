@@ -42,32 +42,67 @@ router.get("/busy-resources", async (req, res) => {
   const nowTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
   const todayStr = now.toISOString().split('T')[0];
 
-  const planQuery = db.select({ id: plansTable.id, endTime: plansTable.endTime })
+  // Get all plans on this date (excluding current plan)
+  const otherPlans = await db.select({ id: plansTable.id })
     .from(plansTable)
-    .where(and(eq(plansTable.date, date), excludePlanId ? ne(plansTable.id, Number(excludePlanId)) : undefined));
+    .where(and(
+      eq(plansTable.date, date),
+      excludePlanId ? ne(plansTable.id, Number(excludePlanId)) : undefined
+    ));
 
-  const otherPlans = await planQuery;
-  // Only plans that are still "ongoing" (no endTime means whole day, or endTime hasn't passed yet)
-  const busyPlanIds = otherPlans
-    .filter(p => {
-      if (date !== todayStr) return true; // future/past day — always busy
-      if (!p.endTime) return true;        // no end time — treat as whole day
-      return p.endTime > nowTime;         // end time is in the future
-    })
-    .map(p => p.id);
+  if (otherPlans.length === 0) return res.json({ busyEmpIds: [], busyPicIds: [] });
+  const otherPlanIds = otherPlans.map(p => p.id);
 
-  if (busyPlanIds.length === 0) return res.json({ busyEmpIds: [], busyPicIds: [] });
-
-  const assignments = await db.select({
+  // Get ALL assignments for those plans (metadata rows + actual resource rows)
+  const allAssignments = await db.select({
+    planId: assignmentsTable.planId,
     employeeId: assignmentsTable.employeeId,
     pickupId: assignmentsTable.pickupId,
-  }).from(assignmentsTable).where(
-    inArray(assignmentsTable.planId, busyPlanIds)
-  );
+    position: assignmentsTable.position,
+    notes: assignmentsTable.notes,
+  }).from(assignmentsTable).where(inArray(assignmentsTable.planId, otherPlanIds));
 
-  const busyEmpIds = [...new Set(assignments.map(a => a.employeeId).filter(Boolean))] as number[];
-  const busyPicIds = [...new Set(assignments.map(a => a.pickupId).filter(Boolean))] as number[];
-  res.json({ busyEmpIds, busyPicIds });
+  // Build block-level metadata: key = `${planId}-${blockIdx}` → { endDate, endTime }
+  // Metadata rows are stored at position = bi*200 (localPos === 0) with JSON notes
+  const blockMeta = new Map<string, { endDate: string; endTime: string }>();
+  allAssignments.forEach(a => {
+    const localPos = a.position % 200;
+    if (localPos === 0 && a.notes) {
+      try {
+        const meta = JSON.parse(a.notes);
+        const bi = Math.floor(a.position / 200);
+        blockMeta.set(`${a.planId}-${bi}`, { endDate: meta.ed ?? '', endTime: meta.et ?? '' });
+      } catch {}
+    }
+  });
+
+  // Decide whether a given block's resources are still "busy"
+  const isBlockBusy = (planId: number, bi: number): boolean => {
+    const meta = blockMeta.get(`${planId}-${bi}`);
+    if (!meta || !meta.endDate) {
+      // No per-block metadata → fall back: busy if plan date >= today
+      return date >= todayStr;
+    }
+    if (meta.endDate > todayStr) return true;   // end date still in the future
+    if (meta.endDate < todayStr) return false;   // end date already passed
+    // end date == today → check time
+    if (!meta.endTime) return true;              // no end time → whole day
+    return meta.endTime > nowTime;               // end time not yet reached
+  };
+
+  // Collect busy employee/vehicle IDs
+  const busyEmpIds = new Set<number>();
+  const busyPicIds = new Set<number>();
+  allAssignments.forEach(a => {
+    const localPos = a.position % 200;
+    if (localPos === 0) return; // skip metadata rows
+    const bi = Math.floor(a.position / 200);
+    if (!isBlockBusy(a.planId, bi)) return;
+    if (a.employeeId) busyEmpIds.add(a.employeeId);
+    if (a.pickupId) busyPicIds.add(a.pickupId);
+  });
+
+  res.json({ busyEmpIds: [...busyEmpIds], busyPicIds: [...busyPicIds] });
 });
 
 router.get("/", async (_req, res) => {
