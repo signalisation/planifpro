@@ -9,6 +9,11 @@ import { fr } from "date-fns/locale";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuSub, DropdownMenuSubContent,
+  DropdownMenuSubTrigger, DropdownMenuTrigger
+} from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 import {
   useGetPlan, useListEmployees, useListPickups, useListClients,
@@ -16,7 +21,8 @@ import {
 } from "@workspace/api-client-react";
 import {
   Printer, Save, Check, User, Truck, GripVertical,
-  CalendarDays, Building2, X, Plus, Trash2
+  CalendarDays, Building2, X, Plus, Trash2, MoreHorizontal,
+  ArrowRight, ExternalLink
 } from "lucide-react";
 import type { Employee, Pickup, Client } from "@workspace/api-client-react/src/generated/api.schemas";
 
@@ -68,15 +74,19 @@ function DraggablePickup({ pickup }: { pickup: Pickup }) {
 
 // ---- Single Client Block ----
 function ClientBlockCard({
-  block, employees, pickups,
-  onRemoveEmployee, onRemovePickup, onRemoveBlock
+  block, employees, pickups, allBlocks,
+  onRemoveEmployee, onRemovePickup, onRemoveBlock,
+  onMoveEmployee, onMovePickup,
 }: {
   block: ClientBlock;
   employees: Employee[];
   pickups: Pickup[];
+  allBlocks: ClientBlock[];
   onRemoveEmployee: (uid: string, id: number) => void;
   onRemovePickup: (uid: string, id: number) => void;
   onRemoveBlock: (uid: string) => void;
+  onMoveEmployee: (fromUid: string, toUid: string, id: number) => void;
+  onMovePickup: (fromUid: string, toUid: string, id: number) => void;
 }) {
   const empZoneId = `drop-emp-${block.uid}`;
   const picZoneId = `drop-pic-${block.uid}`;
@@ -85,6 +95,7 @@ function ClientBlockCard({
 
   const assignedEmps = block.empIds.map(id => employees.find(e => e.id === id)).filter(Boolean) as Employee[];
   const assignedPics = block.picIds.map(id => pickups.find(p => p.id === id)).filter(Boolean) as Pickup[];
+  const otherBlocks = allBlocks.filter(b => b.uid !== block.uid);
 
   return (
     <div className="bg-white border border-border rounded-xl shadow-sm overflow-hidden">
@@ -96,11 +107,11 @@ function ClientBlockCard({
         </div>
         <div className="px-3 py-2 flex items-center gap-1.5">
           <User className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-          <span className="text-xs font-semibold text-foreground">Signaleurs / Employés</span>
+          <span className="text-xs font-semibold text-foreground">Signaleurs</span>
         </div>
         <div className="px-3 py-2 flex items-center gap-1.5">
           <Truck className="h-3.5 w-3.5 text-amber-600 shrink-0" />
-          <span className="text-xs font-semibold text-foreground">Véhicules / Pick-ups</span>
+          <span className="text-xs font-semibold text-foreground">Véhicules</span>
           <button onClick={() => onRemoveBlock(block.uid)} className="ml-auto text-slate-300 hover:text-red-500 transition-colors p-0.5 rounded" title="Supprimer ce bloc">
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -117,7 +128,7 @@ function ClientBlockCard({
           <div className="mt-3 flex flex-col gap-1 w-full">
             <div className="flex items-center gap-1.5 text-[10px] text-blue-700 bg-blue-50 rounded px-2 py-1">
               <User className="h-3 w-3 shrink-0" />
-              <span className="font-semibold">{assignedEmps.length} employé{assignedEmps.length !== 1 ? 's' : ''}</span>
+              <span className="font-semibold">{assignedEmps.length} signaleur{assignedEmps.length !== 1 ? 's' : ''}</span>
             </div>
             <div className="flex items-center gap-1.5 text-[10px] text-amber-700 bg-amber-50 rounded px-2 py-1">
               <Truck className="h-3 w-3 shrink-0" />
@@ -136,15 +147,45 @@ function ClientBlockCard({
                   <div className="font-semibold text-xs text-blue-900 truncate">{emp.firstName} {emp.lastName}</div>
                   <div className="text-[10px] text-blue-700/70">{emp.role || 'Signaleur'}</div>
                 </div>
-                <button onClick={() => onRemoveEmployee(block.uid, emp.id)} className="text-blue-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="text-blue-300 hover:text-blue-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-0.5 rounded hover:bg-blue-100">
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem asChild>
+                      <a href="/personnel" className="flex items-center gap-2 cursor-pointer">
+                        <ExternalLink className="h-3.5 w-3.5" /> Voir la fiche
+                      </a>
+                    </DropdownMenuItem>
+                    {otherBlocks.length > 0 && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="flex items-center gap-2">
+                          <ArrowRight className="h-3.5 w-3.5" /> Déplacer vers
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {otherBlocks.map(b => (
+                            <DropdownMenuItem key={b.uid} onClick={() => onMoveEmployee(block.uid, b.uid, emp.id)}>
+                              <Building2 className="h-3.5 w-3.5 mr-2 text-primary" />
+                              {b.clientName}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onRemoveEmployee(block.uid, emp.id)} className="text-red-600 focus:text-red-600">
+                      <X className="h-3.5 w-3.5 mr-2" /> Retirer du bloc
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
             <div className={`flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOverEmp ? 'border-blue-400 bg-blue-100/50' : 'border-slate-200'}`}>
               <Plus className={`h-4 w-4 mb-0.5 ${isOverEmp ? 'text-blue-500' : 'text-slate-300'}`} />
               <span className={`text-[10px] ${isOverEmp ? 'text-blue-600 font-semibold' : 'text-slate-400 italic'}`}>
-                {isOverEmp ? 'Déposez ici' : 'Glissez un employé ici'}
+                {isOverEmp ? 'Déposez ici' : 'Glissez un signaleur ici'}
               </span>
             </div>
           </div>
@@ -158,9 +199,39 @@ function ClientBlockCard({
                   <div className="font-mono font-bold text-xs bg-white border border-amber-200 text-amber-900 px-1 rounded inline-block">{pic.plateNumber}</div>
                   <div className="text-[10px] text-amber-700/70 mt-0.5">{pic.model || pic.brand}</div>
                 </div>
-                <button onClick={() => onRemovePickup(block.uid, pic.id)} className="text-amber-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
-                  <X className="h-3.5 w-3.5" />
-                </button>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="text-amber-300 hover:text-amber-600 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 p-0.5 rounded hover:bg-amber-100">
+                      <MoreHorizontal className="h-3.5 w-3.5" />
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-52">
+                    <DropdownMenuItem asChild>
+                      <a href="/vehicules" className="flex items-center gap-2 cursor-pointer">
+                        <ExternalLink className="h-3.5 w-3.5" /> Voir les détails
+                      </a>
+                    </DropdownMenuItem>
+                    {otherBlocks.length > 0 && (
+                      <DropdownMenuSub>
+                        <DropdownMenuSubTrigger className="flex items-center gap-2">
+                          <ArrowRight className="h-3.5 w-3.5" /> Déplacer vers
+                        </DropdownMenuSubTrigger>
+                        <DropdownMenuSubContent>
+                          {otherBlocks.map(b => (
+                            <DropdownMenuItem key={b.uid} onClick={() => onMovePickup(block.uid, b.uid, pic.id)}>
+                              <Building2 className="h-3.5 w-3.5 mr-2 text-primary" />
+                              {b.clientName}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuSubContent>
+                      </DropdownMenuSub>
+                    )}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => onRemovePickup(block.uid, pic.id)} className="text-red-600 focus:text-red-600">
+                      <X className="h-3.5 w-3.5 mr-2" /> Retirer du bloc
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
               </div>
             ))}
             <div className={`flex-1 min-h-[56px] flex flex-col items-center justify-center rounded-lg border-2 border-dashed transition-colors ${isOverPic ? 'border-amber-400 bg-amber-100/50' : 'border-slate-200'}`}>
@@ -308,6 +379,24 @@ export default function PlanDetailPage() {
     setIsSaved(false);
   };
 
+  const handleMoveEmployee = (fromUid: string, toUid: string, id: number) => {
+    setClientBlocks(prev => prev.map(blk => {
+      if (blk.uid === fromUid) return { ...blk, empIds: blk.empIds.filter(x => x !== id) };
+      if (blk.uid === toUid && !blk.empIds.includes(id)) return { ...blk, empIds: [...blk.empIds, id] };
+      return blk;
+    }));
+    setIsSaved(false);
+  };
+
+  const handleMovePickup = (fromUid: string, toUid: string, id: number) => {
+    setClientBlocks(prev => prev.map(blk => {
+      if (blk.uid === fromUid) return { ...blk, picIds: blk.picIds.filter(x => x !== id) };
+      if (blk.uid === toUid && !blk.picIds.includes(id)) return { ...blk, picIds: [...blk.picIds, id] };
+      return blk;
+    }));
+    setIsSaved(false);
+  };
+
   const handleAddClient = (client: Client) => {
     setClientBlocks(prev => [...prev, { uid: genUid(), clientId: client.id!, clientName: client.name, empIds: [], picIds: [] }]);
     setIsSaved(false);
@@ -423,9 +512,12 @@ export default function PlanDetailPage() {
                     block={blk}
                     employees={employees || []}
                     pickups={pickups || []}
+                    allBlocks={clientBlocks}
                     onRemoveEmployee={handleRemoveEmployee}
                     onRemovePickup={handleRemovePickup}
                     onRemoveBlock={handleRemoveBlock}
+                    onMoveEmployee={handleMoveEmployee}
+                    onMovePickup={handleMovePickup}
                   />
                 ))}
 
@@ -477,8 +569,8 @@ export default function PlanDetailPage() {
           <thead>
             <tr className="bg-gray-100">
               <th className="border border-black p-3 text-left w-40">Client</th>
-              <th className="border border-black p-3 text-left">Signaleurs / Employés</th>
-              <th className="border border-black p-3 text-left">Véhicules / Pick-ups</th>
+              <th className="border border-black p-3 text-left">Signaleurs</th>
+              <th className="border border-black p-3 text-left">Véhicules</th>
               <th className="border border-black p-3 text-left w-36">Signature</th>
             </tr>
           </thead>
