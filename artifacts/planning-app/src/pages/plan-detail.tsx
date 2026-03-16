@@ -360,15 +360,19 @@ export default function PlanDetailPage() {
   const [editEndTime, setEditEndTime] = useState('');
 
   // Busy resources from other plans on the same date
-  const { data: busyResources } = useQuery<{ busyEmpIds: number[]; busyPicIds: number[] }>({
+  const { data: busyResources, refetch: refetchBusy } = useQuery<{ busyEmpIds: number[]; busyPicIds: number[] }>({
     queryKey: ['/api/plans/busy-resources', plan?.date, planId],
     queryFn: async () => {
       if (!plan?.date) return { busyEmpIds: [], busyPicIds: [] };
-      const r = await fetch(`/api/plans/busy-resources?date=${plan.date}&excludePlanId=${planId}`);
+      // Send current local date+time so server comparison is timezone-aware
+      const now = new Date();
+      const pad = (n: number) => String(n).padStart(2, '0');
+      const clientNow = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`;
+      const r = await fetch(`/api/plans/busy-resources?date=${plan.date}&excludePlanId=${planId}&clientNow=${encodeURIComponent(clientNow)}`);
       return r.json();
     },
     enabled: !!plan?.date,
-    refetchInterval: 60_000,
+    refetchInterval: 30_000,
   });
 
   // Load assignments from DB on mount
@@ -514,6 +518,7 @@ export default function PlanDetailPage() {
       await saveMutation.mutateAsync({ id: planId, data: { assignments } });
       setIsSaved(true);
       toast({ title: "Dates enregistrées" });
+      refetchBusy();
     } catch {
       setIsSaved(false);
       toast({ title: "Dates mises à jour — pensez à sauvegarder le plan", variant: "destructive" });

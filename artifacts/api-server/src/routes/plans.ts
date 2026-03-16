@@ -35,67 +35,109 @@ const UpdatePlanBodyFixed = z.object({
 });
 
 router.get("/busy-resources", async (req, res) => {
-  const { date, excludePlanId } = req.query as { date?: string; excludePlanId?: string };
+  // date: the date of the plan being edited (YYYY-MM-DD)
+  // clientNow: current date+time from the browser as "YYYY-MM-DDTHH:MM" — avoids server timezone issues
+  // excludePlanId: plan being edited, excluded from the search
+  const { date, excludePlanId, clientNow } = req.query as {
+    date?: string;
+    excludePlanId?: string;
+    clientNow?: string;
+  };
   if (!date) return res.json({ busyEmpIds: [], busyPicIds: [] });
 
-  const now = new Date();
-  const nowTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
-  const todayStr = now.toISOString().split('T')[0];
+  // Use client-supplied current date/time to avoid server timezone mismatches
+  let todayStr: string;
+  let nowTime: string;
+  if (clientNow && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(clientNow)) {
+    [todayStr, nowTime] = clientNow.split('T') as [string, string];
+  } else {
+    const now = new Date();
+    todayStr = now.toISOString().split('T')[0];
+    nowTime = `${String(now.getUTCHours()).padStart(2,'0')}:${String(now.getUTCMinutes()).padStart(2,'0')}`;
+  }
 
-  // Get all plans on this date (excluding current plan)
-  const otherPlans = await db.select({ id: plansTable.id })
-    .from(plansTable)
-    .where(and(
-      eq(plansTable.date, date),
-      excludePlanId ? ne(plansTable.id, Number(excludePlanId)) : undefined
-    ));
+  const excludeId = excludePlanId ? Number(excludePlanId) : null;
 
-  if (otherPlans.length === 0) return res.json({ busyEmpIds: [], busyPicIds: [] });
-  const otherPlanIds = otherPlans.map(p => p.id);
+  // Step 1 (parallel): get all plans and all assignments for non-excluded plans in one shot
+  const [allPlans, allAssignments] = await Promise.all([
+    db.select({ id: plansTable.id, date: plansTable.date })
+      .from(plansTable)
+      .where(excludeId ? ne(plansTable.id, excludeId) : undefined),
+    db.select({
+      planId: assignmentsTable.planId,
+      employeeId: assignmentsTable.employeeId,
+      pickupId: assignmentsTable.pickupId,
+      position: assignmentsTable.position,
+      notes: assignmentsTable.notes,
+    }).from(assignmentsTable)
+      .where(excludeId ? ne(assignmentsTable.planId, excludeId) : undefined),
+  ]);
 
-  // Get ALL assignments for those plans (metadata rows + actual resource rows)
-  const allAssignments = await db.select({
-    planId: assignmentsTable.planId,
-    employeeId: assignmentsTable.employeeId,
-    pickupId: assignmentsTable.pickupId,
-    position: assignmentsTable.position,
-    notes: assignmentsTable.notes,
-  }).from(assignmentsTable).where(inArray(assignmentsTable.planId, otherPlanIds));
+  const planDateMap = new Map<number, string>();
+  allPlans.forEach(p => planDateMap.set(p.id, p.date as string));
 
-  // Build block-level metadata: key = `${planId}-${blockIdx}` → { endDate, endTime }
-  // Metadata rows are stored at position = bi*200 (localPos === 0) with JSON notes
-  const blockMeta = new Map<string, { endDate: string; endTime: string }>();
+  // Step 2: Parse block metadata from assignment rows (metadata rows: position % 200 === 0 with JSON notes)
+  // key = "${planId}-${blockIdx}" → { startDate, endDate, endTime }
+  const blockMeta = new Map<string, { sd: string; ed: string; et: string }>();
+  const plansWithMeta = new Set<number>(); // tracks which plans have at least one metadata row
+
   allAssignments.forEach(a => {
-    const localPos = a.position % 200;
-    if (localPos === 0 && a.notes) {
-      try {
-        const meta = JSON.parse(a.notes);
-        const bi = Math.floor(a.position / 200);
-        blockMeta.set(`${a.planId}-${bi}`, { endDate: meta.ed ?? '', endTime: meta.et ?? '' });
-      } catch {}
+    if (a.position % 200 !== 0 || !a.notes) return;
+    try {
+      const meta = JSON.parse(a.notes);
+      const bi = Math.floor(a.position / 200);
+      blockMeta.set(`${a.planId}-${bi}`, {
+        sd: meta.sd ?? '',
+        ed: meta.ed ?? '',
+        et: meta.et ?? '',
+      });
+      plansWithMeta.add(a.planId);
+    } catch {}
+  });
+
+  // Step 3: Determine which plans have blocks that overlap with [date]
+  // A block overlaps if: startDate <= date AND endDate >= date
+  const activePlanIds = new Set<number>();
+
+  blockMeta.forEach((meta, key) => {
+    const planId = Number(key.split('-')[0]);
+    const sd = meta.sd;
+    const ed = meta.ed;
+    if (!ed) return; // no end date saved yet
+    if (ed >= date && (sd <= date || !sd)) {
+      activePlanIds.add(planId);
     }
   });
 
-  // Decide whether a given block's resources are still "busy"
+  // Fallback for plans without any block metadata: use plan.date directly
+  allPlans.forEach(p => {
+    if (!plansWithMeta.has(p.id) && (p.date as string) === date) {
+      activePlanIds.add(p.id);
+    }
+  });
+
+  if (activePlanIds.size === 0) return res.json({ busyEmpIds: [], busyPicIds: [] });
+
+  // Step 4: Determine busy status per block and collect resource IDs
   const isBlockBusy = (planId: number, bi: number): boolean => {
     const meta = blockMeta.get(`${planId}-${bi}`);
-    if (!meta || !meta.endDate) {
-      // No per-block metadata → fall back: busy if plan date >= today
-      return date >= todayStr;
+    if (!meta || !meta.ed) {
+      // No block metadata → fallback: busy if plan.date >= today
+      return (planDateMap.get(planId) ?? '') >= todayStr;
     }
-    if (meta.endDate > todayStr) return true;   // end date still in the future
-    if (meta.endDate < todayStr) return false;   // end date already passed
-    // end date == today → check time
-    if (!meta.endTime) return true;              // no end time → whole day
-    return meta.endTime > nowTime;               // end time not yet reached
+    if (meta.ed > todayStr) return true;   // block ends after today → busy
+    if (meta.ed < todayStr) return false;  // block ended before today → free
+    // Block ends today → compare time
+    if (!meta.et) return true;             // no end time → assume whole day
+    return meta.et > nowTime;             // busy until endTime passes
   };
 
-  // Collect busy employee/vehicle IDs
   const busyEmpIds = new Set<number>();
   const busyPicIds = new Set<number>();
+
   allAssignments.forEach(a => {
-    const localPos = a.position % 200;
-    if (localPos === 0) return; // skip metadata rows
+    if (!activePlanIds.has(a.planId)) return;
+    if (a.position % 200 === 0) return; // skip metadata rows
     const bi = Math.floor(a.position / 200);
     if (!isBlockBusy(a.planId, bi)) return;
     if (a.employeeId) busyEmpIds.add(a.employeeId);
