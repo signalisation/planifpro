@@ -362,7 +362,6 @@ export default function PlanDetailPage() {
                   </span>
                 </div>
                 <div className="flex items-center gap-6 text-sm text-muted-foreground font-medium">
-                  <span className="flex items-center gap-1.5"><Building2 className="h-4 w-4" />{plan.clientName}</span>
                   <span className="flex items-center gap-1.5"><CalendarDays className="h-4 w-4" />{format(new Date(plan.date), 'EEEE d MMMM yyyy', { locale: fr })}</span>
                 </div>
               </div>
