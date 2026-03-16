@@ -18,6 +18,7 @@ export const plansTable = pgTable("plans", {
 export const assignmentsTable = pgTable("assignments", {
   id: serial("id").primaryKey(),
   planId: integer("plan_id").notNull().references(() => plansTable.id, { onDelete: "cascade" }),
+  clientId: integer("client_id").references(() => clientsTable.id),
   employeeId: integer("employee_id").references(() => employeesTable.id),
   pickupId: integer("pickup_id").references(() => pickupsTable.id),
   position: integer("position").notNull().default(0),

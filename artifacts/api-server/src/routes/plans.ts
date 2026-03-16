@@ -84,6 +84,7 @@ router.get("/:id", async (req, res) => {
     .select({
       id: assignmentsTable.id,
       planId: assignmentsTable.planId,
+      clientId: assignmentsTable.clientId,
       employeeId: assignmentsTable.employeeId,
       pickupId: assignmentsTable.pickupId,
       position: assignmentsTable.position,
@@ -143,9 +144,19 @@ router.delete("/:id", async (req, res) => {
   res.status(204).send();
 });
 
+const SavePlanAssignmentsBodyFixed = z.object({
+  assignments: z.array(z.object({
+    clientId: z.number().optional(),
+    employeeId: z.number().optional(),
+    pickupId: z.number().optional(),
+    position: z.number(),
+    notes: z.string().optional(),
+  })),
+});
+
 router.post("/:id/assignments", async (req, res) => {
   const { id } = SavePlanAssignmentsParams.parse({ id: Number(req.params.id) });
-  const body = SavePlanAssignmentsBody.parse(req.body);
+  const body = SavePlanAssignmentsBodyFixed.parse(req.body);
 
   // Delete existing assignments
   await db.delete(assignmentsTable).where(eq(assignmentsTable.planId, id));
@@ -155,6 +166,7 @@ router.post("/:id/assignments", async (req, res) => {
     await db.insert(assignmentsTable).values(
       body.assignments.map((a) => ({
         planId: id,
+        clientId: a.clientId ?? null,
         employeeId: a.employeeId ?? null,
         pickupId: a.pickupId ?? null,
         position: a.position,
@@ -183,6 +195,7 @@ router.post("/:id/assignments", async (req, res) => {
     .select({
       id: assignmentsTable.id,
       planId: assignmentsTable.planId,
+      clientId: assignmentsTable.clientId,
       employeeId: assignmentsTable.employeeId,
       pickupId: assignmentsTable.pickupId,
       position: assignmentsTable.position,
