@@ -1,22 +1,31 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Planning App API - Fleet and HR management
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: clients
+    description: Client management
+  - name: employees
+    description: Employee management
+  - name: pickups
+    description: Vehicle/pickup management
+  - name: plans
+    description: Work plan management
+  - name: import
+    description: Data import from Excel
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +33,388 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /clients:
+    get:
+      operationId: listClients
+      tags: [clients]
+      summary: List all clients
+      responses:
+        "200":
+          description: List of clients
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Client"
+    post:
+      operationId: createClient
+      tags: [clients]
+      summary: Create a new client
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientRequest"
+      responses:
+        "201":
+          description: Created client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+
+  /clients/{id}:
+    get:
+      operationId: getClient
+      tags: [clients]
+      summary: Get a client by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+        "404":
+          description: Not found
+    put:
+      operationId: updateClient
+      tags: [clients]
+      summary: Update a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateClientRequest"
+      responses:
+        "200":
+          description: Updated client
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Client"
+    delete:
+      operationId: deleteClient
+      tags: [clients]
+      summary: Delete a client
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /employees:
+    get:
+      operationId: listEmployees
+      tags: [employees]
+      summary: List all employees
+      responses:
+        "200":
+          description: List of employees
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Employee"
+    post:
+      operationId: createEmployee
+      tags: [employees]
+      summary: Create a new employee
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmployeeRequest"
+      responses:
+        "201":
+          description: Created employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+
+  /employees/{id}:
+    put:
+      operationId: updateEmployee
+      tags: [employees]
+      summary: Update an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateEmployeeRequest"
+      responses:
+        "200":
+          description: Updated employee
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Employee"
+    delete:
+      operationId: deleteEmployee
+      tags: [employees]
+      summary: Delete an employee
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /pickups:
+    get:
+      operationId: listPickups
+      tags: [pickups]
+      summary: List all pickups/vehicles
+      responses:
+        "200":
+          description: List of pickups
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pickup"
+    post:
+      operationId: createPickup
+      tags: [pickups]
+      summary: Create a new pickup/vehicle
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePickupRequest"
+      responses:
+        "201":
+          description: Created pickup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pickup"
+
+  /pickups/{id}:
+    put:
+      operationId: updatePickup
+      tags: [pickups]
+      summary: Update a pickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePickupRequest"
+      responses:
+        "200":
+          description: Updated pickup
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Pickup"
+    delete:
+      operationId: deletePickup
+      tags: [pickups]
+      summary: Delete a pickup
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /plans:
+    get:
+      operationId: listPlans
+      tags: [plans]
+      summary: List all work plans
+      responses:
+        "200":
+          description: List of plans
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+    post:
+      operationId: createPlan
+      tags: [plans]
+      summary: Create a new work plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlanRequest"
+      responses:
+        "201":
+          description: Created plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      tags: [plans]
+      summary: Get a plan by ID with all assignments
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Full plan with assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanDetail"
+        "404":
+          description: Not found
+    put:
+      operationId: updatePlan
+      tags: [plans]
+      summary: Update a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlanRequest"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    delete:
+      operationId: deletePlan
+      tags: [plans]
+      summary: Delete a plan
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+
+  /plans/{id}/assignments:
+    post:
+      operationId: savePlanAssignments
+      tags: [plans]
+      summary: Save all assignments for a plan (replaces existing)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SaveAssignmentsRequest"
+      responses:
+        "200":
+          description: Saved assignments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PlanDetail"
+
+  /import/employees:
+    post:
+      operationId: importEmployees
+      tags: [import]
+      summary: Import employees from Excel data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportEmployeesRequest"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
+  /import/pickups:
+    post:
+      operationId: importPickups
+      tags: [import]
+      summary: Import pickups/vehicles from Excel data
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ImportPickupsRequest"
+      responses:
+        "200":
+          description: Import result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImportResult"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +425,329 @@ components:
       required:
         - status
 
+    Client:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        contact:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - createdAt
+
+    CreateClientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        address:
+          type: string
+        contact:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+      required:
+        - name
+
+    Employee:
+      type: object
+      properties:
+        id:
+          type: integer
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+        department:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        employeeNumber:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - firstName
+        - lastName
+        - status
+        - createdAt
+
+    CreateEmployeeRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+        department:
+          type: string
+        phone:
+          type: string
+        email:
+          type: string
+        employeeNumber:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+      required:
+        - firstName
+        - lastName
+
+    Pickup:
+      type: object
+      properties:
+        id:
+          type: integer
+        plateNumber:
+          type: string
+        model:
+          type: string
+        brand:
+          type: string
+        year:
+          type: integer
+        capacity:
+          type: integer
+        status:
+          type: string
+          enum: [available, in_use, maintenance]
+        color:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - plateNumber
+        - status
+        - createdAt
+
+    CreatePickupRequest:
+      type: object
+      properties:
+        plateNumber:
+          type: string
+        model:
+          type: string
+        brand:
+          type: string
+        year:
+          type: integer
+        capacity:
+          type: integer
+        status:
+          type: string
+          enum: [available, in_use, maintenance]
+        color:
+          type: string
+      required:
+        - plateNumber
+
+    Plan:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        status:
+          type: string
+          enum: [draft, confirmed, completed]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - clientId
+        - date
+        - status
+        - createdAt
+
+    PlanDetail:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        clientId:
+          type: integer
+        clientName:
+          type: string
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        status:
+          type: string
+          enum: [draft, confirmed, completed]
+        createdAt:
+          type: string
+          format: date-time
+        assignments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Assignment"
+      required:
+        - id
+        - name
+        - clientId
+        - date
+        - status
+        - createdAt
+        - assignments
+
+    Assignment:
+      type: object
+      properties:
+        id:
+          type: integer
+        planId:
+          type: integer
+        employeeId:
+          type: integer
+        pickupId:
+          type: integer
+        employee:
+          $ref: "#/components/schemas/Employee"
+        pickup:
+          $ref: "#/components/schemas/Pickup"
+        position:
+          type: integer
+        notes:
+          type: string
+      required:
+        - id
+        - planId
+        - position
+
+    CreatePlanRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        clientId:
+          type: integer
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        status:
+          type: string
+          enum: [draft, confirmed, completed]
+      required:
+        - name
+        - clientId
+        - date
+
+    UpdatePlanRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        clientId:
+          type: integer
+        date:
+          type: string
+          format: date
+        notes:
+          type: string
+        status:
+          type: string
+          enum: [draft, confirmed, completed]
+
+    SaveAssignmentsRequest:
+      type: object
+      properties:
+        assignments:
+          type: array
+          items:
+            type: object
+            properties:
+              employeeId:
+                type: integer
+              pickupId:
+                type: integer
+              position:
+                type: integer
+              notes:
+                type: string
+            required:
+              - position
+      required:
+        - assignments
+
+    ImportEmployeesRequest:
+      type: object
+      properties:
+        employees:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateEmployeeRequest"
+      required:
+        - employees
+
+    ImportPickupsRequest:
+      type: object
+      properties:
+        pickups:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreatePickupRequest"
+      required:
+        - pickups
+
+    ImportResult:
+      type: object
+      properties:
+        imported:
+          type: integer
+        skipped:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: string
+      required:
+        - imported
+        - skipped
+        - errors

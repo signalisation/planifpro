@@ -1,0 +1,15 @@
+packages:
+  "@dnd-kit/core": "Drag and drop functionality for the plan builder"
+  "@dnd-kit/sortable": "Sortable capabilities for drag and drop"
+  "@dnd-kit/utilities": "Utilities for dnd-kit"
+  "xlsx": "Parsing Excel files for HR and Fleet imports"
+  "date-fns": "Formatting and manipulating dates"
+  "framer-motion": "Smooth animations for UI elements and transitions"
+  "recharts": "Charts for the dashboard statistics"
+  "react-hook-form": "Form state management"
+  "@hookform/resolvers": "Zod validation resolver for forms"
+
+notes:
+  - Using @workspace/api-client-react for TanStack Query hooks as instructed.
+  - Relying on existing shadcn/ui components in src/components/ui/ directory.
+  - Printing functionality uses native window.print() with CSS print media queries.

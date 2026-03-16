@@ -16,6 +16,15 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **API codegen**: Orval (from OpenAPI spec)
 - **Build**: esbuild (CJS bundle)
 
+## Application
+
+**PlanifPro** - Application de planification de flotte et RH avec interface glisser-déposer.
+- Gestion des clients, employés et véhicules (pick-ups)
+- Plans de travail avec drag-and-drop (dnd-kit)
+- Import de données depuis fichiers Excel (xlsx)
+- Rendu visuel imprimable des plans
+- Interface en français
+
 ## Structure
 
 ```text
