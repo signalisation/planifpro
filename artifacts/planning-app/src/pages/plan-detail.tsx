@@ -79,29 +79,48 @@ function ClientBlock({
 
   return (
     <div className="bg-white border border-border rounded-2xl shadow-sm overflow-hidden">
-      {/* Client header */}
-      <div className="bg-primary/5 border-b border-border px-6 py-4 flex items-center gap-3">
-        <div className="bg-primary/10 p-2 rounded-lg text-primary">
-          <Building2 className="h-5 w-5" />
+      {/* Column headers row */}
+      <div className="grid grid-cols-[200px_1fr_1fr] divide-x divide-border border-b border-border bg-slate-50/60">
+        <div className="px-5 py-3 flex items-center gap-2">
+          <Building2 className="h-4 w-4 text-primary shrink-0" />
+          <span className="text-sm font-semibold text-foreground">Client</span>
         </div>
-        <div>
-          <div className="font-display font-bold text-lg text-foreground">{clientName}</div>
-          <div className="text-xs text-muted-foreground">Bloc d'affectation — glissez les ressources ci-dessous</div>
+        <div className="px-5 py-3 flex items-center gap-2">
+          <User className="h-4 w-4 text-blue-600 shrink-0" />
+          <span className="text-sm font-semibold text-foreground">Signaleurs / Employés</span>
+        </div>
+        <div className="px-5 py-3 flex items-center gap-2">
+          <Truck className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-sm font-semibold text-foreground">Véhicules / Pick-ups</span>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 divide-x divide-border min-h-[280px]">
+      <div className="grid grid-cols-[200px_1fr_1fr] divide-x divide-border min-h-[280px]">
+        {/* Client Name Column */}
+        <div className="p-5 flex flex-col items-start justify-start bg-primary/3">
+          <div className="bg-primary/10 p-2.5 rounded-xl text-primary mb-3">
+            <Building2 className="h-5 w-5" />
+          </div>
+          <div className="font-display font-bold text-base text-foreground leading-tight">{clientName}</div>
+          <div className="text-xs text-muted-foreground mt-2 leading-relaxed">Glissez les ressources dans les colonnes correspondantes</div>
+          <div className="mt-4 flex flex-col gap-1.5 w-full">
+            <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-lg px-2.5 py-1.5">
+              <User className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-semibold">{assignedEmps.length} employé{assignedEmps.length !== 1 ? 's' : ''}</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5">
+              <Truck className="h-3.5 w-3.5 shrink-0" />
+              <span className="font-semibold">{assignedPics.length} véhicule{assignedPics.length !== 1 ? 's' : ''}</span>
+            </div>
+          </div>
+        </div>
+
+      <div className="contents">
         {/* Employees Drop Zone */}
         <div
           ref={setEmpRef}
           className={`p-5 flex flex-col gap-3 transition-colors ${isOverEmp ? 'bg-blue-50/60' : 'bg-slate-50/30'}`}
         >
-          <div className="flex items-center gap-2 mb-1">
-            <User className="h-4 w-4 text-blue-600" />
-            <span className="text-sm font-semibold text-foreground">Signaleurs / Employés</span>
-            <span className="ml-auto text-xs font-semibold bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{assignedEmps.length}</span>
-          </div>
-
           {assignedEmps.map(emp => (
             <div key={emp.id} className="flex items-center gap-3 bg-blue-50 border border-blue-100 rounded-xl p-3 group">
               <div className="bg-blue-100 p-2 rounded-md text-blue-700 shrink-0"><User className="h-4 w-4" /></div>
@@ -128,12 +147,6 @@ function ClientBlock({
           ref={setPicRef}
           className={`p-5 flex flex-col gap-3 transition-colors ${isOverPic ? 'bg-amber-50/60' : 'bg-slate-50/10'}`}
         >
-          <div className="flex items-center gap-2 mb-1">
-            <Truck className="h-4 w-4 text-amber-600" />
-            <span className="text-sm font-semibold text-foreground">Véhicules / Pick-ups</span>
-            <span className="ml-auto text-xs font-semibold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full">{assignedPics.length}</span>
-          </div>
-
           {assignedPics.map(pic => (
             <div key={pic.id} className="flex items-center gap-3 bg-amber-50 border border-amber-100 rounded-xl p-3 group">
               <div className="bg-amber-100 p-2 rounded-md text-amber-700 shrink-0"><Truck className="h-4 w-4" /></div>
@@ -154,7 +167,8 @@ function ClientBlock({
             </span>
           </div>
         </div>
-      </div>
+      </div>{/* end contents */}
+      </div>{/* end grid */}
     </div>
   );
 }
