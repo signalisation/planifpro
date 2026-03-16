@@ -8,7 +8,7 @@ import { pickupsTable } from "./pickups";
 export const plansTable = pgTable("plans", {
   id: serial("id").primaryKey(),
   name: text("name").notNull(),
-  clientId: integer("client_id").notNull().references(() => clientsTable.id),
+  clientId: integer("client_id").references(() => clientsTable.id),
   date: date("date").notNull(),
   notes: text("notes"),
   status: text("status").notNull().default("draft"),

@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
-import { useListPlans, useCreatePlan, useListClients, useDeletePlan } from "@workspace/api-client-react";
+import { useListPlans, useCreatePlan, useDeletePlan } from "@workspace/api-client-react";
 import { CalendarDays, Plus, Calendar as CalIcon, Search, Loader2, ArrowRight, Trash2, Building2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 
@@ -21,7 +21,6 @@ const formSchema = z.object({
 export default function PlansPage() {
   const [, setLocation] = useLocation();
   const { data: plans, isLoading } = useListPlans();
-  const { data: clients } = useListClients();
   const [search, setSearch] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { toast } = useToast();
@@ -42,9 +41,8 @@ export default function PlansPage() {
       const d = new Date(values.date);
       const label = d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' });
       const autoName = `Plan du ${label}`;
-      const firstClientId = clients?.[0]?.id ?? 1;
       const result = await createMutation.mutateAsync({
-        data: { name: autoName, clientId: firstClientId, date: values.date, status: "draft" }
+        data: { name: autoName, date: values.date, status: "draft" } as any
       });
       toast({ title: "Plan créé" });
       queryClient.invalidateQueries({ queryKey: ["/api/plans"] });

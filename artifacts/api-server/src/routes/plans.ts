@@ -16,7 +16,7 @@ const router = Router();
 // Override date field to accept string (JSON sends strings, not Date objects)
 const CreatePlanBodyFixed = z.object({
   name: z.string(),
-  clientId: z.number(),
+  clientId: z.number().optional(),
   date: z.string(),
   notes: z.string().optional(),
   status: z.enum(["draft", "confirmed", "completed"]).optional(),
@@ -52,12 +52,14 @@ router.post("/", async (req, res) => {
   const body = CreatePlanBodyFixed.parse(req.body);
   const [plan] = await db.insert(plansTable).values({
     name: body.name,
-    clientId: body.clientId,
+    clientId: body.clientId ?? null,
     date: body.date,
     notes: body.notes ?? null,
     status: body.status ?? "draft",
   }).returning();
-  const [client] = await db.select().from(clientsTable).where(eq(clientsTable.id, plan.clientId));
+  const client = plan.clientId
+    ? (await db.select().from(clientsTable).where(eq(clientsTable.id, plan.clientId)))[0]
+    : null;
   res.status(201).json({ ...plan, clientName: client?.name ?? null });
 });
 

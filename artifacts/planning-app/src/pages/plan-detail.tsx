@@ -257,14 +257,8 @@ export default function PlanDetailPage() {
       });
       setClientBlocks(Array.from(blockMap.values()));
     } else {
-      // Default: one block for the plan's own client
-      setClientBlocks([{
-        uid: genUid(),
-        clientId: plan.clientId,
-        clientName: plan.clientName ?? '',
-        empIds: [],
-        picIds: [],
-      }]);
+      // No assignments yet — start with empty blocks
+      setClientBlocks([]);
     }
     setIsSaved(true);
   }, [plan?.id, clients]);
