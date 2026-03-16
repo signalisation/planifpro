@@ -491,16 +491,33 @@ export default function PlanDetailPage() {
     setDateDialogOpen(true);
   };
 
-  const handleSaveDates = () => {
+  const handleSaveDates = async () => {
     if (!editingBlockUid) return;
-    setClientBlocks(prev => prev.map(blk =>
+    // Build the updated blocks array with the new dates
+    const updatedBlocks = clientBlocks.map(blk =>
       blk.uid === editingBlockUid
         ? { ...blk, startDate: editStartDate, startTime: editStartTime, endDate: editEndDate, endTime: editEndTime }
         : blk
-    ));
-    setIsSaved(false);
+    );
+    setClientBlocks(updatedBlocks);
     setDateDialogOpen(false);
-    toast({ title: "Dates mises à jour — pensez à sauvegarder le plan" });
+
+    // Immediately persist so busy-resources reflects the new dates right away
+    try {
+      const assignments: any[] = [];
+      updatedBlocks.forEach((blk, bi) => {
+        const meta = { sd: blk.startDate ?? '', st: blk.startTime ?? '', ed: blk.endDate ?? '', et: blk.endTime ?? '' };
+        assignments.push({ clientId: blk.clientId, position: bi * 200, notes: JSON.stringify(meta) });
+        blk.empIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + i + 1, employeeId: id }));
+        blk.picIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + 101 + i, pickupId: id }));
+      });
+      await saveMutation.mutateAsync({ id: planId, data: { assignments } });
+      setIsSaved(true);
+      toast({ title: "Dates enregistrées" });
+    } catch {
+      setIsSaved(false);
+      toast({ title: "Dates mises à jour — pensez à sauvegarder le plan", variant: "destructive" });
+    }
   };
 
   const handleSave = async () => {
@@ -768,12 +785,14 @@ export default function PlanDetailPage() {
               </div>
             </div>
             <p className="text-xs text-muted-foreground">
-              Les modifications sont appliquées localement. Pensez à sauvegarder le plan pour les conserver.
+              Les dates seront enregistrées immédiatement et les ressources de ce bloc seront libérées après l'heure de fin.
             </p>
           </div>
           <DialogFooter className="pt-2">
-            <Button variant="outline" onClick={() => setDateDialogOpen(false)}>Annuler</Button>
-            <Button onClick={handleSaveDates}>Appliquer</Button>
+            <Button variant="outline" onClick={() => setDateDialogOpen(false)} disabled={saveMutation.isPending}>Annuler</Button>
+            <Button onClick={handleSaveDates} disabled={saveMutation.isPending}>
+              {saveMutation.isPending ? <><div className="animate-spin h-3.5 w-3.5 border-2 border-white border-t-transparent rounded-full mr-2" />Enregistrement...</> : 'Appliquer'}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
