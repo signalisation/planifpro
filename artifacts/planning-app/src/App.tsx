@@ -10,12 +10,16 @@ import EmployeesPage from "./pages/employees";
 import PickupsPage from "./pages/pickups";
 import PlansPage from "./pages/plans";
 import PlanDetailPage from "./pages/plan-detail";
+import EmployeeDetailPage from "./pages/employee-detail";
+import PickupDetailPage from "./pages/pickup-detail";
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: false,
       refetchOnWindowFocus: false,
+      staleTime: 5 * 60 * 1000,
+      gcTime: 10 * 60 * 1000,
     },
   },
 });
@@ -29,6 +33,8 @@ function Router() {
       <Route path="/pickups" component={PickupsPage} />
       <Route path="/plans" component={PlansPage} />
       <Route path="/plans/:id" component={PlanDetailPage} />
+      <Route path="/personnel/:id" component={EmployeeDetailPage} />
+      <Route path="/vehicules/:id" component={PickupDetailPage} />
       <Route component={NotFound} />
     </Switch>
   );
