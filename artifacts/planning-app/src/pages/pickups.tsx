@@ -103,13 +103,16 @@ export default function PickupsPage() {
     setIsDialogOpen(true);
   };
 
-  const q = search.toLowerCase();
-  const filteredPickups = pickups?.filter(p =>
-    (p.unitNumber && p.unitNumber.toLowerCase().includes(q)) ||
-    (p.plateNumber && p.plateNumber.toLowerCase().includes(q)) ||
-    (p.brand && p.brand.toLowerCase().includes(q)) ||
-    (p.model && p.model.toLowerCase().includes(q))
-  );
+  const q = search.toLowerCase().trim();
+  const filteredPickups = !q
+    ? pickups
+    : pickups?.filter(p =>
+        (p.unitNumber && p.unitNumber.toLowerCase().includes(q)) ||
+        (p.plateNumber && p.plateNumber.toLowerCase().includes(q)) ||
+        (p.brand && p.brand.toLowerCase().includes(q)) ||
+        (p.model && p.model.toLowerCase().includes(q)) ||
+        String(p.id).includes(q)
+      );
 
   const getStatusBadge = (status: string) => {
     switch (status) {

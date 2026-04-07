@@ -102,10 +102,14 @@ export default function EmployeesPage() {
     setIsDialogOpen(true);
   };
 
-  const filteredEmployees = employees?.filter(e => 
-    `${e.firstName} ${e.lastName}`.toLowerCase().includes(search.toLowerCase()) || 
-    (e.role && e.role.toLowerCase().includes(search.toLowerCase()))
-  );
+  const sq = search.toLowerCase().trim();
+  const filteredEmployees = !sq
+    ? employees
+    : employees?.filter(e =>
+        `${e.firstName} ${e.lastName}`.toLowerCase().includes(sq) ||
+        (e.role && e.role.toLowerCase().includes(sq)) ||
+        (e.employeeNumber && e.employeeNumber.toLowerCase().includes(sq))
+      );
 
   return (
     <Layout>
