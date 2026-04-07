@@ -5,6 +5,7 @@ import * as z from "zod";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -34,6 +35,8 @@ export default function PickupsPage() {
   const [search, setSearch] = useState("");
   const [editingPickup, setEditingPickup] = useState<Pickup | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,6 +75,7 @@ export default function PickupsPage() {
       try {
         await deleteMutation.mutateAsync({ id });
         queryClient.invalidateQueries({ queryKey: ["/api/pickups"] });
+        setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
         toast({ title: "Véhicule supprimé" });
       } catch (e) {
         toast({ title: "Erreur", variant: "destructive" });
@@ -79,11 +83,28 @@ export default function PickupsPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} véhicule${selectedIds.size > 1 ? 's' : ''} ?`)) return;
+    setIsBulkDeleting(true);
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try {
+        await deleteMutation.mutateAsync({ id });
+        deleted++;
+      } catch {}
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/pickups"] });
+    setSelectedIds(new Set());
+    setIsBulkDeleting(false);
+    toast({ title: `${deleted} véhicule${deleted > 1 ? 's' : ''} supprimé${deleted > 1 ? 's' : ''}` });
+  };
+
   const handleImport = async (data: any[]) => {
     const result = await importMutation.mutateAsync({ data: { pickups: data } });
     queryClient.invalidateQueries({ queryKey: ["/api/pickups"] });
-    toast({ 
-      title: "Importation terminée", 
+    toast({
+      title: "Importation terminée",
       description: `${result.imported} ajoutés, ${result.skipped} ignorés.`
     });
   };
@@ -114,6 +135,26 @@ export default function PickupsPage() {
         String(p.id).includes(q)
       );
 
+  const allIds = filteredPickups?.map(p => p.id) ?? [];
+  const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+  const someSelected = allIds.some(id => selectedIds.has(id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); allIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); allIds.forEach(id => n.add(id)); return n; });
+    }
+  };
+
+  const toggleOne = (id: number) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'available': return <Badge className="bg-emerald-100 text-emerald-700 hover:bg-emerald-200 shadow-none">Disponible</Badge>;
@@ -137,14 +178,14 @@ export default function PickupsPage() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Rechercher (unité, plaque, marque...)" 
+              <Input
+                placeholder="Rechercher (unité, plaque, marque...)"
                 className="pl-9 bg-muted/50 border-transparent focus:bg-background rounded-xl"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            
+
             <ExcelImport type="pickups" onImport={handleImport} buttonLabel="Importer" />
 
             <Dialog open={isDialogOpen} onOpenChange={(val) => {
@@ -221,6 +262,28 @@ export default function PickupsPage() {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+            <span className="text-sm font-medium text-destructive">
+              {selectedIds.size} véhicule{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </span>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-2 ml-auto"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Supprimer la sélection
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} disabled={isBulkDeleting}>
+              Annuler
+            </Button>
+          </div>
+        )}
+
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
@@ -231,6 +294,14 @@ export default function PickupsPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  <TableHead className="w-10 py-4">
+                    <Checkbox
+                      checked={allSelected}
+                      data-state={someSelected && !allSelected ? "indeterminate" : undefined}
+                      onCheckedChange={toggleAll}
+                      aria-label="Tout sélectionner"
+                    />
+                  </TableHead>
                   <TableHead className="py-4">Unité</TableHead>
                   <TableHead>Véhicule</TableHead>
                   <TableHead>Année / Capacité</TableHead>
@@ -240,10 +311,17 @@ export default function PickupsPage() {
               </TableHeader>
               <TableBody>
                 {filteredPickups?.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun véhicule trouvé.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun véhicule trouvé.</TableCell></TableRow>
                 ) : (
                   filteredPickups?.map(pickup => (
-                    <TableRow key={pickup.id} className="hover:bg-muted/30">
+                    <TableRow key={pickup.id} className={`hover:bg-muted/30 ${selectedIds.has(pickup.id) ? 'bg-primary/5' : ''}`}>
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedIds.has(pickup.id)}
+                          onCheckedChange={() => toggleOne(pickup.id)}
+                          aria-label={`Sélectionner ${pickup.unitNumber || pickup.id}`}
+                        />
+                      </TableCell>
                       <TableCell>
                         <Link href={`/vehicules/${pickup.id}`} className="group">
                           <div className="font-mono font-bold bg-slate-100 text-slate-800 px-3 py-1 rounded border border-slate-200 inline-block group-hover:border-primary/40 group-hover:bg-primary/5 transition-colors">
@@ -255,11 +333,11 @@ export default function PickupsPage() {
                         </Link>
                       </TableCell>
                       <TableCell>
-                        <div className="font-medium">{pickup.brand || 'Inconnue'} {pickup.model}</div>
+                        <div className="font-medium">{[pickup.brand, pickup.model].filter(Boolean).join(' ') || 'Inconnue'}</div>
                         {pickup.color && <div className="text-xs text-muted-foreground mt-0.5">Couleur: {pickup.color}</div>}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {pickup.year || '-'} • {pickup.capacity} pl.
+                        {pickup.year || '-'} • {pickup.capacity ?? '—'} pl.
                       </TableCell>
                       <TableCell>
                         {getStatusBadge(pickup.status)}

@@ -5,6 +5,7 @@ import * as z from "zod";
 import { Layout } from "@/components/layout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ import type { Employee } from "@workspace/api-client-react/src/generated/api.sch
 import { Users, Plus, Edit2, Trash2, Search, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelImport } from "@/components/excel-import";
+import { Link } from "wouter";
 
 const formSchema = z.object({
   firstName: z.string().min(2, "Prénom requis"),
@@ -33,6 +35,8 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState("");
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [isBulkDeleting, setIsBulkDeleting] = useState(false);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -71,6 +75,7 @@ export default function EmployeesPage() {
       try {
         await deleteMutation.mutateAsync({ id });
         queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+        setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; });
         toast({ title: "Employé supprimé" });
       } catch (e) {
         toast({ title: "Erreur", variant: "destructive" });
@@ -78,11 +83,28 @@ export default function EmployeesPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`Êtes-vous sûr de vouloir supprimer ${selectedIds.size} employé${selectedIds.size > 1 ? 's' : ''} ?`)) return;
+    setIsBulkDeleting(true);
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try {
+        await deleteMutation.mutateAsync({ id });
+        deleted++;
+      } catch {}
+    }
+    queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
+    setSelectedIds(new Set());
+    setIsBulkDeleting(false);
+    toast({ title: `${deleted} employé${deleted > 1 ? 's' : ''} supprimé${deleted > 1 ? 's' : ''}` });
+  };
+
   const handleImport = async (data: any[]) => {
     const result = await importMutation.mutateAsync({ data: { employees: data } });
     queryClient.invalidateQueries({ queryKey: ["/api/employees"] });
-    toast({ 
-      title: "Importation terminée", 
+    toast({
+      title: "Importation terminée",
       description: `${result.imported} ajoutés, ${result.skipped} ignorés. ${result.errors.length > 0 ? 'Quelques erreurs.' : ''}`
     });
   };
@@ -111,6 +133,26 @@ export default function EmployeesPage() {
         (e.employeeNumber && e.employeeNumber.toLowerCase().includes(sq))
       );
 
+  const allIds = filteredEmployees?.map(e => e.id!).filter(Boolean) ?? [];
+  const allSelected = allIds.length > 0 && allIds.every(id => selectedIds.has(id));
+  const someSelected = allIds.some(id => selectedIds.has(id));
+
+  const toggleAll = () => {
+    if (allSelected) {
+      setSelectedIds(prev => { const n = new Set(prev); allIds.forEach(id => n.delete(id)); return n; });
+    } else {
+      setSelectedIds(prev => { const n = new Set(prev); allIds.forEach(id => n.add(id)); return n; });
+    }
+  };
+
+  const toggleOne = (id: number) => {
+    setSelectedIds(prev => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+
   return (
     <Layout>
       <div className="max-w-6xl mx-auto space-y-6">
@@ -125,14 +167,14 @@ export default function EmployeesPage() {
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             <div className="relative flex-1 md:w-64 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input 
-                placeholder="Rechercher..." 
+              <Input
+                placeholder="Rechercher (nom, rôle, matricule...)"
                 className="pl-9 bg-muted/50 border-transparent focus:bg-background rounded-xl"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
               />
             </div>
-            
+
             <ExcelImport type="employees" onImport={handleImport} buttonLabel="Importer" />
 
             <Dialog open={isDialogOpen} onOpenChange={(val) => {
@@ -200,6 +242,28 @@ export default function EmployeesPage() {
           </div>
         </div>
 
+        {/* Bulk action bar */}
+        {selectedIds.size > 0 && (
+          <div className="flex items-center gap-3 bg-destructive/5 border border-destructive/20 rounded-xl px-4 py-3">
+            <span className="text-sm font-medium text-destructive">
+              {selectedIds.size} employé{selectedIds.size > 1 ? 's' : ''} sélectionné{selectedIds.size > 1 ? 's' : ''}
+            </span>
+            <Button
+              size="sm"
+              variant="destructive"
+              className="gap-2 ml-auto"
+              onClick={handleBulkDelete}
+              disabled={isBulkDeleting}
+            >
+              {isBulkDeleting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+              Supprimer la sélection
+            </Button>
+            <Button size="sm" variant="ghost" onClick={() => setSelectedIds(new Set())} disabled={isBulkDeleting}>
+              Annuler
+            </Button>
+          </div>
+        )}
+
         <div className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
           {isLoading ? (
             <div className="p-12 text-center text-muted-foreground flex flex-col items-center">
@@ -210,6 +274,14 @@ export default function EmployeesPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
+                  <TableHead className="w-10 py-4">
+                    <Checkbox
+                      checked={allSelected}
+                      data-state={someSelected && !allSelected ? "indeterminate" : undefined}
+                      onCheckedChange={toggleAll}
+                      aria-label="Tout sélectionner"
+                    />
+                  </TableHead>
                   <TableHead className="py-4">Employé</TableHead>
                   <TableHead>Rôle</TableHead>
                   <TableHead>Contact</TableHead>
@@ -219,20 +291,27 @@ export default function EmployeesPage() {
               </TableHeader>
               <TableBody>
                 {filteredEmployees?.length === 0 ? (
-                  <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Aucun employé trouvé.</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Aucun employé trouvé.</TableCell></TableRow>
                 ) : (
                   filteredEmployees?.map(emp => (
-                    <TableRow key={emp.id} className="hover:bg-muted/30">
+                    <TableRow key={emp.id} className={`hover:bg-muted/30 ${selectedIds.has(emp.id!) ? 'bg-primary/5' : ''}`}>
                       <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm">
+                        <Checkbox
+                          checked={selectedIds.has(emp.id!)}
+                          onCheckedChange={() => toggleOne(emp.id!)}
+                          aria-label={`Sélectionner ${emp.firstName} ${emp.lastName}`}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <Link href={`/personnel/${emp.id}`} className="flex items-center gap-3 group">
+                          <div className="h-9 w-9 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 font-semibold text-sm group-hover:bg-primary/10 group-hover:text-primary transition-colors shrink-0">
                             {emp.firstName.charAt(0)}{emp.lastName.charAt(0)}
                           </div>
                           <div>
-                            <div className="font-medium text-foreground">{emp.firstName} {emp.lastName}</div>
+                            <div className="font-medium text-foreground group-hover:text-primary transition-colors">{emp.firstName} {emp.lastName}</div>
                             <div className="text-xs text-muted-foreground">{emp.employeeNumber || 'Sans matricule'}</div>
                           </div>
-                        </div>
+                        </Link>
                       </TableCell>
                       <TableCell>{emp.role || '-'}</TableCell>
                       <TableCell>
@@ -249,7 +328,7 @@ export default function EmployeesPage() {
                           <Button variant="ghost" size="icon" onClick={() => openEdit(emp)} className="h-8 w-8 text-slate-500 hover:text-primary">
                             <Edit2 className="h-4 w-4" />
                           </Button>
-                          <Button variant="ghost" size="icon" onClick={() => handleDelete(emp.id)} className="h-8 w-8 text-slate-500 hover:text-destructive hover:bg-destructive/10">
+                          <Button variant="ghost" size="icon" onClick={() => handleDelete(emp.id!)} className="h-8 w-8 text-slate-500 hover:text-destructive hover:bg-destructive/10">
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
