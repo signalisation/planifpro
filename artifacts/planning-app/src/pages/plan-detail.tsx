@@ -554,9 +554,25 @@ export default function PlanDetailPage() {
   }
   if (!plan) return <Layout><div>Plan introuvable</div></Layout>;
 
-  // Resources already used across ALL blocks + busy in other plans
-  const allUsedEmpIds = clientBlocks.flatMap(b => b.empIds);
-  const allUsedPicIds = clientBlocks.flatMap(b => b.picIds);
+  // Determine if a block's time window is still active (not yet expired)
+  // Expired blocks release their resources back to the disponibles panel
+  const isBlockActive = (blk: ClientBlock): boolean => {
+    if (!blk.endDate) return true; // no end date → treat as ongoing
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const todayStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    const nowTime = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    if (blk.endDate > todayStr) return true;  // ends after today → active
+    if (blk.endDate < todayStr) return false; // ended before today → expired
+    // ends today → compare times (>= because we keep busy through the end minute)
+    if (!blk.endTime) return true;
+    return blk.endTime >= nowTime;
+  };
+
+  // Only count resources from ACTIVE blocks as "used" — expired blocks release their resources
+  const activeBlocks = clientBlocks.filter(isBlockActive);
+  const allUsedEmpIds = activeBlocks.flatMap(b => b.empIds);
+  const allUsedPicIds = activeBlocks.flatMap(b => b.picIds);
   const busyEmpIds = busyResources?.busyEmpIds ?? [];
   const busyPicIds = busyResources?.busyPicIds ?? [];
   const availableEmployees = employees?.filter(e =>
