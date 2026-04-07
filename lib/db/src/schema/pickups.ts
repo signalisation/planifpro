@@ -4,7 +4,8 @@ import { z } from "zod/v4";
 
 export const pickupsTable = pgTable("pickups", {
   id: serial("id").primaryKey(),
-  plateNumber: text("plate_number").notNull(),
+  unitNumber: text("unit_number"),
+  plateNumber: text("plate_number"),
   model: text("model"),
   brand: text("brand"),
   year: integer("year"),

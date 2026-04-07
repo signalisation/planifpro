@@ -77,7 +77,8 @@ export const PickupStatus = {
 
 export interface Pickup {
   id: number;
-  plateNumber: string;
+  unitNumber?: string;
+  plateNumber?: string;
   model?: string;
   brand?: string;
   year?: number;
@@ -97,7 +98,8 @@ export const CreatePickupRequestStatus = {
 } as const;
 
 export interface CreatePickupRequest {
-  plateNumber: string;
+  unitNumber?: string;
+  plateNumber?: string;
   model?: string;
   brand?: string;
   year?: number;

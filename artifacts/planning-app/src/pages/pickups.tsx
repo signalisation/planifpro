@@ -16,9 +16,11 @@ import type { Pickup } from "@workspace/api-client-react/src/generated/api.schem
 import { Truck, Plus, Edit2, Trash2, Search, Loader2 } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ExcelImport } from "@/components/excel-import";
+import { Link } from "wouter";
 
 const formSchema = z.object({
-  plateNumber: z.string().min(2, "Plaque requise"),
+  unitNumber: z.string().min(1, "Numéro d'unité requis"),
+  plateNumber: z.string().optional(),
   brand: z.string().optional(),
   model: z.string().optional(),
   year: z.coerce.number().optional().or(z.literal('')),
@@ -43,7 +45,7 @@ export default function PickupsPage() {
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      plateNumber: "", brand: "", model: "", capacity: 2, color: "", status: "available",
+      unitNumber: "", plateNumber: "", brand: "", model: "", capacity: 2, color: "", status: "available",
     },
   });
 
@@ -89,7 +91,8 @@ export default function PickupsPage() {
   const openEdit = (pickup: Pickup) => {
     setEditingPickup(pickup);
     form.reset({
-      plateNumber: pickup.plateNumber,
+      unitNumber: pickup.unitNumber || "",
+      plateNumber: pickup.plateNumber || "",
       brand: pickup.brand || "",
       model: pickup.model || "",
       year: pickup.year || undefined,
@@ -100,10 +103,12 @@ export default function PickupsPage() {
     setIsDialogOpen(true);
   };
 
-  const filteredPickups = pickups?.filter(p => 
-    p.plateNumber.toLowerCase().includes(search.toLowerCase()) || 
-    (p.brand && p.brand.toLowerCase().includes(search.toLowerCase())) ||
-    (p.model && p.model.toLowerCase().includes(search.toLowerCase()))
+  const q = search.toLowerCase();
+  const filteredPickups = pickups?.filter(p =>
+    (p.unitNumber && p.unitNumber.toLowerCase().includes(q)) ||
+    (p.plateNumber && p.plateNumber.toLowerCase().includes(q)) ||
+    (p.brand && p.brand.toLowerCase().includes(q)) ||
+    (p.model && p.model.toLowerCase().includes(q))
   );
 
   const getStatusBadge = (status: string) => {
@@ -130,7 +135,7 @@ export default function PickupsPage() {
             <div className="relative flex-1 md:w-64 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input 
-                placeholder="Rechercher..." 
+                placeholder="Rechercher (unité, plaque, marque...)" 
                 className="pl-9 bg-muted/50 border-transparent focus:bg-background rounded-xl"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -154,9 +159,22 @@ export default function PickupsPage() {
                 </DialogHeader>
                 <Form {...form}>
                   <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 pt-4">
-                    <FormField control={form.control} name="plateNumber" render={({ field }) => (
-                      <FormItem><FormLabel>Plaque d'immatriculation *</FormLabel><FormControl><Input {...field} className="font-mono uppercase" /></FormControl><FormMessage /></FormItem>
-                    )} />
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField control={form.control} name="unitNumber" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>N° d'unité *</FormLabel>
+                          <FormControl><Input {...field} className="font-mono" placeholder="09-462" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                      <FormField control={form.control} name="plateNumber" render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Plaque (optionnel)</FormLabel>
+                          <FormControl><Input {...field} className="font-mono uppercase" placeholder="ABC 123" /></FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )} />
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                       <FormField control={form.control} name="brand" render={({ field }) => (
                         <FormItem><FormLabel>Marque</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem>
@@ -210,9 +228,9 @@ export default function PickupsPage() {
             <Table>
               <TableHeader className="bg-muted/50">
                 <TableRow>
-                  <TableHead className="py-4">Plaque</TableHead>
+                  <TableHead className="py-4">Unité</TableHead>
                   <TableHead>Véhicule</TableHead>
-                  <TableHead>Année/Capacité</TableHead>
+                  <TableHead>Année / Capacité</TableHead>
                   <TableHead>Statut</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -224,15 +242,18 @@ export default function PickupsPage() {
                   filteredPickups?.map(pickup => (
                     <TableRow key={pickup.id} className="hover:bg-muted/30">
                       <TableCell>
-                        <div className="font-mono font-bold bg-slate-100 text-slate-800 px-3 py-1 rounded border border-slate-200 inline-block">
-                          {pickup.plateNumber}
-                        </div>
+                        <Link href={`/vehicules/${pickup.id}`} className="group">
+                          <div className="font-mono font-bold bg-slate-100 text-slate-800 px-3 py-1 rounded border border-slate-200 inline-block group-hover:border-primary/40 group-hover:bg-primary/5 transition-colors">
+                            {pickup.unitNumber || pickup.plateNumber || `#${pickup.id}`}
+                          </div>
+                          {pickup.unitNumber && pickup.plateNumber && (
+                            <div className="text-xs text-muted-foreground font-mono mt-0.5">{pickup.plateNumber}</div>
+                          )}
+                        </Link>
                       </TableCell>
                       <TableCell>
                         <div className="font-medium">{pickup.brand || 'Inconnue'} {pickup.model}</div>
-                        {pickup.color && <div className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                          Couleur: {pickup.color}
-                        </div>}
+                        {pickup.color && <div className="text-xs text-muted-foreground mt-0.5">Couleur: {pickup.color}</div>}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {pickup.year || '-'} • {pickup.capacity} pl.

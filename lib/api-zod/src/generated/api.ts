@@ -162,7 +162,8 @@ export const DeleteEmployeeParams = zod.object({
  */
 export const ListPickupsResponseItem = zod.object({
   id: zod.number(),
-  plateNumber: zod.string(),
+  unitNumber: zod.string().optional(),
+  plateNumber: zod.string().optional(),
   model: zod.string().optional(),
   brand: zod.string().optional(),
   year: zod.number().optional(),
@@ -177,7 +178,8 @@ export const ListPickupsResponse = zod.array(ListPickupsResponseItem);
  * @summary Create a new pickup/vehicle
  */
 export const CreatePickupBody = zod.object({
-  plateNumber: zod.string(),
+  unitNumber: zod.string().optional(),
+  plateNumber: zod.string().optional(),
   model: zod.string().optional(),
   brand: zod.string().optional(),
   year: zod.number().optional(),
@@ -194,7 +196,8 @@ export const UpdatePickupParams = zod.object({
 });
 
 export const UpdatePickupBody = zod.object({
-  plateNumber: zod.string(),
+  unitNumber: zod.string().optional(),
+  plateNumber: zod.string().optional(),
   model: zod.string().optional(),
   brand: zod.string().optional(),
   year: zod.number().optional(),
@@ -205,7 +208,8 @@ export const UpdatePickupBody = zod.object({
 
 export const UpdatePickupResponse = zod.object({
   id: zod.number(),
-  plateNumber: zod.string(),
+  unitNumber: zod.string().optional(),
+  plateNumber: zod.string().optional(),
   model: zod.string().optional(),
   brand: zod.string().optional(),
   year: zod.number().optional(),
@@ -432,7 +436,8 @@ export const ImportEmployeesResponse = zod.object({
 export const ImportPickupsBody = zod.object({
   pickups: zod.array(
     zod.object({
-      plateNumber: zod.string(),
+      unitNumber: zod.string().optional(),
+      plateNumber: zod.string().optional(),
       model: zod.string().optional(),
       brand: zod.string().optional(),
       year: zod.number().optional(),

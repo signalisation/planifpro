@@ -39,15 +39,17 @@ export default function PickupDetailPage() {
   }
 
   const statusConfig = {
-    available:   { label: 'Disponible',    color: 'bg-emerald-100 text-emerald-700', banner: 'bg-emerald-50 border-emerald-100', icon: <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />, desc: 'Ce véhicule peut être assigné à des plans d\'intervention.' },
+    available:   { label: 'Disponible',    color: 'bg-emerald-100 text-emerald-700', banner: 'bg-emerald-50 border-emerald-100', icon: <CheckCircle2 className="h-5 w-5 text-emerald-600 shrink-0" />, desc: "Ce véhicule peut être assigné à des plans d'intervention." },
     in_use:      { label: 'En service',    color: 'bg-blue-100 text-blue-700',       banner: 'bg-blue-50 border-blue-100',       icon: <Truck className="h-5 w-5 text-blue-600 shrink-0" />,        desc: 'Ce véhicule est actuellement en service.' },
-    maintenance: { label: 'Maintenance',   color: 'bg-red-100 text-red-700',         banner: 'bg-red-50 border-red-100',         icon: <Wrench className="h-5 w-5 text-red-500 shrink-0" />,        desc: 'Ce véhicule est en maintenance et n\'est pas disponible.' },
+    maintenance: { label: 'Maintenance',   color: 'bg-red-100 text-red-700',         banner: 'bg-red-50 border-red-100',         icon: <Wrench className="h-5 w-5 text-red-500 shrink-0" />,        desc: "Ce véhicule est en maintenance et n'est pas disponible." },
   }[pickup.status] ?? {
     label: pickup.status, color: 'bg-slate-100 text-slate-600',
     banner: 'bg-slate-50 border-slate-200',
     icon: <AlertCircle className="h-5 w-5 text-slate-400 shrink-0" />,
     desc: ''
   };
+
+  const displayName = pickup.unitNumber || pickup.plateNumber || `#${pickup.id}`;
 
   return (
     <Layout>
@@ -70,7 +72,7 @@ export default function PickupDetailPage() {
               </div>
               <div className="pb-1">
                 <div className="font-mono font-bold text-2xl text-foreground bg-slate-100 px-3 py-1 rounded-lg border border-slate-200 inline-block tracking-wider">
-                  {pickup.plateNumber}
+                  {displayName}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
                   <span className="text-muted-foreground text-sm">{pickup.brand || ''} {pickup.model || 'Véhicule'}</span>
@@ -83,6 +85,12 @@ export default function PickupDetailPage() {
 
             {/* Info grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {pickup.unitNumber && (
+                <InfoRow icon={<Hash className="h-4 w-4 text-slate-500" />} label="Numéro d'unité" value={pickup.unitNumber} mono />
+              )}
+              {pickup.plateNumber && (
+                <InfoRow icon={<Hash className="h-4 w-4 text-slate-500" />} label="Plaque d'immatriculation" value={pickup.plateNumber} mono />
+              )}
               {pickup.brand && (
                 <InfoRow icon={<Truck className="h-4 w-4 text-slate-500" />} label="Marque" value={pickup.brand} />
               )}
@@ -98,7 +106,7 @@ export default function PickupDetailPage() {
               {pickup.color && (
                 <InfoRow icon={<Palette className="h-4 w-4 text-slate-500" />} label="Couleur" value={pickup.color} />
               )}
-              <InfoRow icon={<Hash className="h-4 w-4 text-slate-500" />} label="Identifiant" value={`#${pickup.id}`} mono />
+              <InfoRow icon={<Hash className="h-4 w-4 text-slate-500" />} label="Identifiant système" value={`#${pickup.id}`} mono />
             </div>
           </div>
         </div>

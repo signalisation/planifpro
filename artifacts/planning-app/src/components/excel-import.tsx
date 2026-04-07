@@ -54,7 +54,8 @@ export function ExcelImport({ type, onImport, buttonLabel }: ExcelImportProps) {
             };
           } else {
             return {
-              plateNumber: String(row["Plaque"] || row["Immatriculation"] || row["Plate"] || "000-XXX"),
+              unitNumber: row["Unit"] || row["Unité"] || row["Numéro"] || row["unitNumber"] ? String(row["Unit"] || row["Unité"] || row["Numéro"] || row["unitNumber"]) : undefined,
+              plateNumber: row["Plaque"] || row["Immatriculation"] || row["Plate"] ? String(row["Plaque"] || row["Immatriculation"] || row["Plate"]) : undefined,
               model: row["Modèle"] || row["Model"] || undefined,
               brand: row["Marque"] || row["Brand"] || undefined,
               year: row["Année"] || row["Year"] ? parseInt(row["Année"] || row["Year"]) : undefined,
@@ -111,7 +112,7 @@ export function ExcelImport({ type, onImport, buttonLabel }: ExcelImportProps) {
           <DialogTitle>Importation Excel</DialogTitle>
           <DialogDescription>
             Téléchargez un fichier Excel (.xlsx, .csv) contenant les données à importer.
-            {type === "employees" ? " (Colonnes attendues: Prénom, Nom, Rôle, Téléphone...)" : " (Colonnes attendues: Plaque, Marque, Modèle, Année...)"}
+            {type === "employees" ? " (Colonnes attendues: Prénom, Nom, Rôle, Téléphone...)" : " (Colonnes attendues: Unit, Plaque, Marque, Modèle, Année...)"}
           </DialogDescription>
         </DialogHeader>
 
@@ -173,10 +174,10 @@ export function ExcelImport({ type, onImport, buttonLabel }: ExcelImportProps) {
                         </>
                       ) : (
                         <>
+                          <TableHead>Unité</TableHead>
                           <TableHead>Plaque</TableHead>
                           <TableHead>Marque</TableHead>
                           <TableHead>Modèle</TableHead>
-                          <TableHead>Capacité</TableHead>
                         </>
                       )}
                     </TableRow>
@@ -193,10 +194,10 @@ export function ExcelImport({ type, onImport, buttonLabel }: ExcelImportProps) {
                           </>
                         ) : (
                           <>
-                            <TableCell className="font-medium font-mono">{row.plateNumber}</TableCell>
+                            <TableCell className="font-medium font-mono">{row.unitNumber ?? "—"}</TableCell>
+                            <TableCell className="font-mono text-sm text-muted-foreground">{row.plateNumber ?? "—"}</TableCell>
                             <TableCell>{row.brand}</TableCell>
                             <TableCell>{row.model}</TableCell>
-                            <TableCell>{row.capacity}</TableCell>
                           </>
                         )}
                       </TableRow>

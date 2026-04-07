@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 const router = Router();
 
 router.get("/", async (_req, res) => {
-  const pickups = await db.select().from(pickupsTable).orderBy(pickupsTable.plateNumber);
+  const pickups = await db.select().from(pickupsTable).orderBy(pickupsTable.unitNumber);
   res.json(pickups);
 });
 

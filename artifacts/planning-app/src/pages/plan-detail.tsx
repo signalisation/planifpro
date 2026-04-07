@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRoute, Link } from "wouter";
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
@@ -73,7 +73,7 @@ function DraggablePickup({ pickup }: { pickup: Pickup }) {
       className={`px-2.5 py-2 bg-white border border-slate-200 rounded-lg shadow-sm flex items-center gap-2 cursor-grab hover:border-primary/50 transition-colors ${isDragging ? 'opacity-40 ring-2 ring-primary' : ''}`}>
       <div className="bg-amber-50 p-1.5 rounded-md text-amber-600 shrink-0"><Truck className="h-3.5 w-3.5" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-bold text-xs bg-slate-100 px-1 rounded inline-block">{pickup.plateNumber}</div>
+        <div className="font-mono font-bold text-xs bg-slate-100 px-1 rounded inline-block">{pickup.unitNumber || pickup.plateNumber}</div>
         <div className="text-[10px] text-muted-foreground mt-0.5">{pickup.model || 'Véhicule'}</div>
       </div>
       <GripVertical className="h-3.5 w-3.5 text-slate-300 shrink-0" />
@@ -156,7 +156,7 @@ function DraggableAssignedPickup({ pickup, blockUid, onRemove, onEditDates, othe
       </div>
       <div className="bg-amber-100 p-1 rounded text-amber-700 shrink-0"><Truck className="h-3.5 w-3.5" /></div>
       <div className="flex-1 min-w-0">
-        <div className="font-mono font-bold text-xs bg-white border border-amber-200 text-amber-900 px-1 rounded inline-block">{pickup.plateNumber}</div>
+        <div className="font-mono font-bold text-xs bg-white border border-amber-200 text-amber-900 px-1 rounded inline-block">{pickup.unitNumber || pickup.plateNumber}</div>
         <div className="text-[10px] text-amber-700/70 mt-0.5">{pickup.model || pickup.brand}</div>
       </div>
       <DropdownMenu>
@@ -412,6 +412,8 @@ export default function PlanDetailPage() {
   const [activeItem, setActiveItem] = useState<any>(null);
   const [clientBlocks, setClientBlocks] = useState<ClientBlock[]>([]);
   const [isSaved, setIsSaved] = useState(true);
+  const hasLoadedRef = useRef(false);
+  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // 1-second ticker → forces isBlockActive to re-evaluate every second
   const [, setTick] = useState(0);
@@ -482,8 +484,31 @@ export default function PlanDetailPage() {
       // No assignments yet — start with empty blocks
       setClientBlocks([]);
     }
+    hasLoadedRef.current = true;
     setIsSaved(true);
   }, [plan?.id, clients]);
+
+  // Auto-save: debounce 1.5s after clientBlocks change, but only after initial DB load
+  useEffect(() => {
+    if (!hasLoadedRef.current || isSaved) return;
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      try {
+        const assignments: any[] = [];
+        clientBlocks.forEach((blk, bi) => {
+          const meta = { sd: blk.startDate ?? '', st: blk.startTime ?? '', ed: blk.endDate ?? '', et: blk.endTime ?? '' };
+          assignments.push({ clientId: blk.clientId, position: bi * 200, notes: JSON.stringify(meta) });
+          blk.empIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + i + 1, employeeId: id }));
+          blk.picIds.forEach((id, i) => assignments.push({ clientId: blk.clientId, position: bi * 200 + 101 + i, pickupId: id }));
+        });
+        await saveMutation.mutateAsync({ id: planId, data: { assignments } });
+        setIsSaved(true);
+      } catch {
+        // silent — user can still save manually
+      }
+    }, 1500);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [clientBlocks, isSaved]);
 
   const handleDragStart = (event: DragStartEvent) => {
     setActiveId(event.active.id as string);
@@ -788,7 +813,7 @@ export default function PlanDetailPage() {
               ) : activeItem && (activeId?.startsWith('pic-') || activeId?.startsWith('bloc-pic-')) ? (
                 <div className="p-3 bg-white border border-primary ring-4 ring-primary/20 rounded-xl shadow-xl flex items-center gap-3 w-60 opacity-90">
                   <div className="bg-amber-50 p-2 rounded-lg text-amber-600"><Truck className="h-4 w-4" /></div>
-                  <div><div className="font-mono font-bold text-sm bg-slate-100 px-1 rounded">{activeItem.plateNumber}</div><div className="text-xs text-muted-foreground mt-0.5">{activeItem.model}</div></div>
+                  <div><div className="font-mono font-bold text-sm bg-slate-100 px-1 rounded">{activeItem.unitNumber || activeItem.plateNumber}</div><div className="text-xs text-muted-foreground mt-0.5">{activeItem.model}</div></div>
                 </div>
               ) : null}
             </DragOverlay>
@@ -843,7 +868,7 @@ export default function PlanDetailPage() {
                   </td>
                   <td className="border border-black p-3">
                     {pics[i] ? (
-                      <span><span className="font-mono font-bold border border-gray-400 px-1 rounded mr-2">{pics[i].plateNumber}</span>{pics[i].model || pics[i].brand}</span>
+                      <span><span className="font-mono font-bold border border-gray-400 px-1 rounded mr-2">{pics[i].unitNumber || pics[i].plateNumber}</span>{pics[i].model || pics[i].brand}</span>
                     ) : <span className="text-gray-300 italic">—</span>}
                   </td>
                   <td className="border border-black p-3"></td>

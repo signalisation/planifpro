@@ -42,7 +42,8 @@ router.post("/pickups", async (req, res) => {
   for (const pickup of body.pickups) {
     try {
       await db.insert(pickupsTable).values({
-        plateNumber: pickup.plateNumber,
+        unitNumber: pickup.unitNumber ?? null,
+        plateNumber: pickup.plateNumber ?? null,
         model: pickup.model ?? null,
         brand: pickup.brand ?? null,
         year: pickup.year ?? null,
@@ -53,7 +54,7 @@ router.post("/pickups", async (req, res) => {
       imported++;
     } catch (err) {
       skipped++;
-      errors.push(`Erreur pour ${pickup.plateNumber}: ${(err as Error).message}`);
+      errors.push(`Erreur pour ${pickup.unitNumber ?? pickup.plateNumber ?? "inconnu"}: ${(err as Error).message}`);
     }
   }
 
