@@ -27,7 +27,7 @@ import {
 import {
   Printer, Save, Check, User, Truck, GripVertical,
   CalendarDays, Building2, X, Plus, Trash2, MoreHorizontal,
-  ArrowRight, ExternalLink, Clock, Pencil
+  ArrowRight, ExternalLink, Clock, Pencil, Search
 } from "lucide-react";
 import type { Employee, Pickup, Client } from "@workspace/api-client-react/src/generated/api.schemas";
 
@@ -423,6 +423,7 @@ export default function PlanDetailPage() {
   }, []);
 
   // Per-block date/time editing dialog
+  const [sidebarSearch, setSidebarSearch] = useState('');
   const [dateDialogOpen, setDateDialogOpen] = useState(false);
   const [editingBlockUid, setEditingBlockUid] = useState<string | null>(null);
   const [editStartDate, setEditStartDate] = useState('');
@@ -688,12 +689,21 @@ export default function PlanDetailPage() {
   const allUsedPicIds = activeBlocks.flatMap(b => b.picIds);
   const busyEmpIds = busyResources?.busyEmpIds ?? [];
   const busyPicIds = busyResources?.busyPicIds ?? [];
-  const availableEmployees = employees?.filter(e =>
+  const searchTerm = sidebarSearch.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const availableEmployees = (employees?.filter(e =>
     e.status === 'active' && !allUsedEmpIds.includes(e.id!) && !busyEmpIds.includes(e.id!)
-  ) || [];
-  const availablePickups = pickups?.filter(p =>
+  ) || []).filter(e => {
+    if (!searchTerm) return true;
+    const full = `${e.firstName} ${e.lastName} ${e.role ?? ''} ${e.employeeNumber ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return full.includes(searchTerm);
+  });
+  const availablePickups = (pickups?.filter(p =>
     p.status === 'available' && !allUsedPicIds.includes(p.id!) && !busyPicIds.includes(p.id!)
-  ) || [];
+  ) || []).filter(p => {
+    if (!searchTerm) return true;
+    const full = `${p.unitNumber ?? ''} ${p.plateNumber ?? ''} ${p.brand ?? ''} ${p.model ?? ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    return full.includes(searchTerm);
+  });
   const usedClientIds = clientBlocks.map(b => b.clientId);
   const isDraggingFromBlock = activeId?.startsWith('bloc-') ?? false;
   return (
@@ -745,11 +755,28 @@ export default function PlanDetailPage() {
 
               {/* Left Sidebar */}
               <div className="w-72 bg-card rounded-2xl border border-border shadow-sm flex flex-col overflow-hidden shrink-0">
-                <div className="p-4 border-b border-border bg-slate-50/50">
+                <div className="p-4 border-b border-border bg-slate-50/50 space-y-2">
                   <h3 className="font-semibold text-foreground">Ressources disponibles</h3>
-                  <p className="text-xs text-muted-foreground mt-1">
+                  <p className="text-xs text-muted-foreground">
                     {isDraggingFromBlock ? 'Déposez sur la zone rouge pour retirer' : 'Glissez vers un bloc client'}
                   </p>
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <Input
+                      value={sidebarSearch}
+                      onChange={e => setSidebarSearch(e.target.value)}
+                      placeholder="Rechercher…"
+                      className="pl-8 h-8 text-sm bg-white"
+                    />
+                    {sidebarSearch && (
+                      <button
+                        onClick={() => setSidebarSearch('')}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <RemoveZone visible={isDraggingFromBlock} />
                 <Tabs defaultValue="employees" className="flex-1 flex flex-col overflow-hidden">
