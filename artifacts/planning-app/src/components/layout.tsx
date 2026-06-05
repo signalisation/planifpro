@@ -8,7 +8,8 @@ import {
   Building2,
   Menu,
   Settings,
-  Bell
+  Bell,
+  BarChart2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
@@ -20,6 +21,7 @@ interface LayoutProps {
 const NAV_ITEMS = [
   { href: "/", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/plans", label: "Planification", icon: CalendarDays },
+  { href: "/interventions", label: "Interventions", icon: BarChart2 },
   { href: "/clients", label: "Clients", icon: Building2 },
   { href: "/employees", label: "Personnel", icon: Users },
   { href: "/pickups", label: "Flotte Véhicules", icon: Truck },

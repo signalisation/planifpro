@@ -12,6 +12,7 @@ import PlansPage from "./pages/plans";
 import PlanDetailPage from "./pages/plan-detail";
 import EmployeeDetailPage from "./pages/employee-detail";
 import PickupDetailPage from "./pages/pickup-detail";
+import InterventionsPage from "./pages/interventions";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -35,6 +36,7 @@ function Router() {
       <Route path="/plans/:id" component={PlanDetailPage} />
       <Route path="/personnel/:id" component={EmployeeDetailPage} />
       <Route path="/vehicules/:id" component={PickupDetailPage} />
+      <Route path="/interventions" component={InterventionsPage} />
       <Route component={NotFound} />
     </Switch>
   );
